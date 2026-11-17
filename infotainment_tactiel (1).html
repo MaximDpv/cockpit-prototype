@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infotainment-concept · tactiel</title>
+<style>
+/* ===== Tokens: zachte hardware ===================================== */
+#screen{
+  --bg:#E3E6EA; --surface:#ECEEF1; --well:#DDE1E6;
+  --ink:#1D2228; --ink-soft:#626B76; --line:rgba(30,35,40,.08);
+  --accent:#2F5BFF; --heat:#FF6B2C; --cool:#2AA8F2; --ok:#17A866; --bad:#E5383B;
+  --sh-out:7px 7px 16px rgba(150,158,170,.55),-7px -7px 16px rgba(255,255,255,.95);
+  --sh-sm:4px 4px 9px rgba(150,158,170,.5),-4px -4px 9px rgba(255,255,255,.95);
+  --sh-in:inset 4px 4px 9px rgba(150,158,170,.5),inset -4px -4px 9px rgba(255,255,255,.9);
+  --map-land:#E8EBE6; --map-park:#CFDCCB; --map-water:#B7CFE0; --map-road:#FFFFFF; --map-minor:#F6F7F5;
+  --font:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+}
+#screen.dark{
+  --bg:#22262C; --surface:#292E35; --well:#1D2126;
+  --ink:#E9EDF2; --ink-soft:#8F99A5; --line:rgba(255,255,255,.07);
+  --sh-out:7px 7px 16px rgba(0,0,0,.5),-7px -7px 16px rgba(255,255,255,.035);
+  --sh-sm:4px 4px 9px rgba(0,0,0,.45),-4px -4px 9px rgba(255,255,255,.035);
+  --sh-in:inset 4px 4px 9px rgba(0,0,0,.5),inset -4px -4px 9px rgba(255,255,255,.03);
+  --map-land:#2B3038; --map-park:#2E3A33; --map-water:#22364A; --map-road:#3B424C; --map-minor:#323840;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:transparent}
+#fit{width:100%;max-width:1280px;margin:0 auto;aspect-ratio:16/9;position:relative;overflow:hidden;border-radius:24px;
+  box-shadow:0 0 0 10px #111316,0 0 0 11px #2b2f35,0 30px 60px rgba(0,0,0,.35)}
+#screen{width:1280px;height:720px;position:absolute;left:0;top:0;transform-origin:0 0;background:var(--bg);color:var(--ink);
+  font-family:var(--font);-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none;overflow:hidden;transition:background .4s,color .4s}
+#dim{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:200;transition:opacity .2s}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.i.f{fill:currentColor;stroke:none}
+.num{font-variant-numeric:tabular-nums}
+
+/* oppervlakken */
+.raised{background:var(--surface);box-shadow:var(--sh-out);border-radius:24px}
+.well{background:var(--well);box-shadow:var(--sh-in);border-radius:18px}
+.key{background:var(--surface);box-shadow:var(--sh-sm);border-radius:16px;display:inline-grid;place-items:center;transition:box-shadow .15s,transform .12s,color .2s}
+.key:active,.key.on{box-shadow:var(--sh-in)}
+.key.on{color:var(--accent)}
+.key:active{transform:scale(.97)}
+.key:focus-visible,.card:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.seg{display:flex;padding:5px;gap:4px;background:var(--well);box-shadow:var(--sh-in);border-radius:16px}
+.seg button{flex:1;height:40px;border-radius:12px;font-weight:600;font-size:15px;color:var(--ink-soft);transition:.2s}
+.seg button.on{background:var(--surface);box-shadow:var(--sh-sm);color:var(--accent)}
+.sw{width:58px;height:32px;border-radius:16px;background:var(--well);box-shadow:var(--sh-in);position:relative;flex:none;transition:background .2s}
+.sw::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:var(--surface);box-shadow:var(--sh-sm);transition:transform .22s cubic-bezier(.3,.8,.3,1.2)}
+.sw.on{background:var(--accent)} .sw.on::after{transform:translateX(26px);background:#fff}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:12px;border-radius:6px;background:var(--well);box-shadow:var(--sh-in);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--surface);box-shadow:var(--sh-sm),inset 0 0 0 7px var(--accent);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:var(--surface);box-shadow:var(--sh-sm),inset 0 0 0 7px var(--accent);border:0;cursor:pointer}
+.row{display:flex;align-items:center}
+.lbl{font-size:14px;color:var(--ink-soft)}
+.h1{font-size:30px;font-weight:700;letter-spacing:-.02em}
+.h2{font-size:20px;font-weight:700;letter-spacing:-.01em}
+.scroll{overflow-y:auto;scrollbar-width:none}.scroll::-webkit-scrollbar{display:none}
+
+/* ===== Rail ======================================================== */
+#rail{position:absolute;left:0;top:0;bottom:0;width:104px;display:flex;flex-direction:column;align-items:center;padding:18px 0;gap:10px;z-index:10}
+#rail .nav{width:72px;height:62px;border-radius:20px;display:grid;place-items:center;color:var(--ink-soft);position:relative;transition:.2s}
+#rail .nav svg{width:26px;height:26px}
+#rail .nav.on{background:var(--surface);box-shadow:var(--sh-in);color:var(--accent)}
+#rail .nav:active{transform:scale(.95)}
+#rail .nav.on::before{content:"";position:absolute;left:-16px;top:18px;bottom:18px;width:5px;border-radius:3px;background:var(--accent)}
+#rail .sp{flex:1}
+#micBtn{width:72px;height:72px;border-radius:50%;color:#fff;background:var(--accent);box-shadow:var(--sh-sm),0 8px 22px -6px var(--accent);display:grid;place-items:center}
+#micBtn:active{transform:scale(.94)}
+
+/* ===== Statusbalk ================================================ */
+#status{position:absolute;left:104px;right:0;top:0;height:60px;display:flex;align-items:center;padding:0 26px 0 14px;gap:18px;z-index:10;font-size:16px}
+#clock{font-size:22px;font-weight:700}
+#status .st{display:flex;align-items:center;gap:6px;color:var(--ink-soft)}
+#status .st svg{width:20px;height:20px}
+#callPill{display:none;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:18px;background:var(--ok);color:#fff;font-weight:600}
+#callPill.show{display:flex}
+#guidePill{display:none;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:18px;background:var(--accent);color:#fff;font-weight:600}
+#guidePill.show{display:flex}
+#status .grow{flex:1}
+#bell{position:relative;width:44px;height:44px}
+#bell b{position:absolute;top:4px;right:4px;min-width:18px;height:18px;border-radius:9px;background:var(--bad);color:#fff;font-size:11px;display:grid;place-items:center;padding:0 4px}
+#profBtn{display:flex;align-items:center;gap:10px;height:44px;padding:0 16px 0 6px;border-radius:22px}
+.av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;flex:none}
+
+/* ===== Views ===================================================== */
+#views{position:absolute;left:104px;right:22px;top:66px;bottom:104px}
+.view{position:absolute;inset:0;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .25s,transform .3s}
+.view.on{opacity:1;pointer-events:auto;transform:none}
+
+/* Home */
+#v-home{display:grid;grid-template-columns:1.35fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:22px;padding:6px}
+.card{position:relative;padding:22px;cursor:pointer;overflow:hidden;transition:transform .15s}
+.card:active{transform:scale(.985)}
+.card .lbl{margin-bottom:6px}
+#hNav{grid-row:1/3;display:flex;flex-direction:column;padding:0}
+#hNav .mini{flex:1;position:relative;border-radius:24px 24px 0 0;overflow:hidden}
+#hNav .mini svg{width:100%;height:100%;display:block}
+#hNav .bot{padding:18px 22px 22px}
+.search{display:flex;align-items:center;gap:12px;height:56px;padding:0 18px;color:var(--ink-soft);font-size:18px}
+.chips{display:flex;gap:12px;margin-top:14px}
+.chip{height:44px;padding:0 18px;gap:8px;font-weight:600;font-size:15px}
+.chip svg{width:18px;height:18px}
+#hMedia .art{width:96px;height:96px;border-radius:18px;flex:none}
+.ctrls{display:flex;gap:12px;margin-top:14px}
+.ctrls .key{width:52px;height:52px;border-radius:50%}
+.big{font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.unit{font-size:18px;color:var(--ink-soft);font-weight:600}
+.bar{height:10px;border-radius:5px;background:var(--well);box-shadow:var(--sh-in);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:5px;background:var(--accent);transition:width .5s}
+.favs{display:flex;gap:16px;margin-top:12px}
+.fav{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:14px;font-weight:600}
+.fav .av{width:58px;height:58px;font-size:18px;box-shadow:var(--sh-sm)}
+
+/* Navigatie */
+#map{position:absolute;inset:0;border-radius:26px;overflow:hidden;box-shadow:var(--sh-in);cursor:grab}
+#map.drag{cursor:grabbing}
+#map svg{width:100%;height:100%;display:block}
+#navPanel{position:absolute;left:18px;top:18px;bottom:18px;width:370px;padding:20px;display:flex;flex-direction:column;gap:14px;z-index:2}
+#navPanel input{flex:1;background:none;border:0;outline:none;font:600 18px var(--font);color:var(--ink)}
+#navPanel input::placeholder{color:var(--ink-soft);font-weight:500}
+.dlist{flex:1;display:flex;flex-direction:column;gap:10px}
+.ditem{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:18px;text-align:left;width:100%}
+.ditem:hover{background:var(--well)}
+.ditem .ic{width:46px;height:46px;border-radius:14px;flex:none}
+.ditem b{display:block;font-size:17px}
+.ditem span{font-size:14px;color:var(--ink-soft)}
+.ditem .km{margin-left:auto;font-size:14px;color:var(--ink-soft);font-weight:600}
+.mapctl{position:absolute;right:18px;top:18px;display:flex;flex-direction:column;gap:12px;z-index:2}
+.mapctl .key{width:54px;height:54px}
+#guide{position:absolute;left:50%;top:18px;transform:translate(-50%,-140%);display:flex;align-items:center;gap:18px;padding:16px 24px;z-index:3;opacity:0;transition:transform .35s cubic-bezier(.2,.9,.3,1.1),opacity .25s;background:var(--accent);color:#fff;border-radius:24px;box-shadow:0 14px 30px -10px var(--accent)}
+#guide.show{transform:translate(-50%,0);opacity:1}
+#guide .gi{width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,.18);display:grid;place-items:center}
+#guide .gi svg{width:30px;height:30px}
+#guide b{font-size:28px;letter-spacing:-.02em}
+#guide span{display:block;font-size:16px;opacity:.85}
+.stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat3 div{padding:12px;border-radius:16px;background:var(--well);box-shadow:var(--sh-in)}
+.stat3 b{display:block;font-size:22px}
+.stat3 span{font-size:13px;color:var(--ink-soft)}
+.btnP{height:56px;border-radius:18px;background:var(--accent);color:#fff;font-weight:700;font-size:18px;box-shadow:var(--sh-sm),0 10px 22px -10px var(--accent)}
+.btnP:active{transform:scale(.98)}
+.btnS{height:56px;border-radius:18px;font-weight:700;font-size:17px}
+
+/* Media */
+#v-media{display:grid;grid-template-columns:430px 1fr;gap:22px;padding:6px}
+#npCard{padding:26px;display:flex;flex-direction:column}
+#npArt{width:100%;aspect-ratio:1.55;border-radius:22px;position:relative;overflow:hidden;box-shadow:var(--sh-sm)}
+#npArt .vis{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;gap:5px;padding-bottom:20px;opacity:.85}
+#npArt .vis i{width:7px;border-radius:4px;background:rgba(255,255,255,.85);height:20px}
+.playing #npArt .vis i{animation:eqb .9s ease-in-out infinite alternate}
+@keyframes eqb{from{height:8px}to{height:54px}}
+#npTitle{font-size:26px;font-weight:700;letter-spacing:-.02em;margin-top:18px}
+#npArtist{font-size:17px;color:var(--ink-soft);margin-top:4px}
+#seek{height:12px;border-radius:6px;background:var(--well);box-shadow:var(--sh-in);margin-top:18px;cursor:pointer;position:relative}
+#seek i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--accent)}
+.times{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);margin-top:6px}
+.mctl{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+.mctl .key{width:54px;height:54px;border-radius:50%}
+.mctl .pp{width:76px;height:76px;color:#fff;background:var(--accent);box-shadow:var(--sh-sm),0 10px 22px -8px var(--accent)}
+.mctl .pp svg{width:30px;height:30px}
+.volrow{display:flex;align-items:center;gap:14px;margin-top:auto;padding-top:16px}
+#libCard{padding:22px;display:flex;flex-direction:column;gap:16px;position:relative}
+.tlist{flex:1;display:flex;flex-direction:column;gap:6px}
+.trk{display:flex;align-items:center;gap:16px;padding:10px 12px;border-radius:16px;width:100%;text-align:left}
+.trk:hover{background:var(--well)}
+.trk.cur{background:var(--well);box-shadow:var(--sh-in)}
+.trk .th{width:52px;height:52px;border-radius:12px;flex:none}
+.trk b{display:block;font-size:17px}
+.trk span{font-size:14px;color:var(--ink-soft)}
+.trk .du{margin-left:auto;font-size:14px;color:var(--ink-soft)}
+.trk.cur b{color:var(--accent)}
+#eqPanel{position:absolute;inset:0;padding:24px;display:none;flex-direction:column;gap:18px;background:var(--surface);border-radius:24px;z-index:3}
+#eqPanel.show{display:flex}
+.eqs{flex:1;display:grid;grid-template-columns:repeat(5,1fr);gap:16px;align-items:stretch}
+.eqc{display:flex;flex-direction:column;align-items:center;gap:10px}
+.eqc .vr{flex:1;width:56px;position:relative;border-radius:28px;cursor:pointer;touch-action:none}
+.eqc .vr i{position:absolute;left:6px;right:6px;bottom:6px;border-radius:22px;background:var(--accent);opacity:.9}
+.eqc b{font-size:15px}.eqc span{font-size:13px;color:var(--ink-soft)}
+
+/* Telefoon */
+#v-phone{display:grid;grid-template-columns:1fr 1fr;gap:22px;padding:6px}
+#phList{padding:22px;display:flex;flex-direction:column;gap:14px}
+.pitem{display:flex;align-items:center;gap:14px;padding:10px 12px;border-radius:16px;width:100%;text-align:left}
+.pitem:hover{background:var(--well)}
+.pitem b{display:block;font-size:17px}
+.pitem span{font-size:14px;color:var(--ink-soft)}
+.pitem .cb{margin-left:auto;width:46px;height:46px;border-radius:50%;color:var(--ok)}
+.pitem.miss b{color:var(--bad)}
+#pad{padding:22px;display:flex;flex-direction:column;gap:14px}
+#padDisp{height:64px;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:600;letter-spacing:.06em;position:relative}
+#padDisp:empty::before{content:"Voer een nummer in";font-size:18px;color:var(--ink-soft);letter-spacing:0;font-weight:500}
+.keys{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.keys .key{border-radius:20px;flex-direction:column;font-size:28px;font-weight:600;line-height:1}
+.keys .key small{font-size:11px;color:var(--ink-soft);letter-spacing:.12em;font-weight:600;margin-top:4px}
+.padact{display:grid;grid-template-columns:1fr 1.6fr 1fr;gap:12px}
+.padact .key{height:60px}
+.callb{background:var(--ok)!important;color:#fff;box-shadow:var(--sh-sm),0 10px 22px -10px var(--ok)!important}
+
+/* Klimaat */
+#v-climate{display:grid;grid-template-columns:250px 1fr 250px;grid-template-rows:minmax(0,1fr) auto;gap:22px;padding:6px}
+.zone{min-height:0;padding:22px;display:flex;flex-direction:column;align-items:center;gap:14px}
+.zone .big{font-size:64px;font-weight:600}
+.zone .tk{width:100%;display:flex;gap:12px}
+.zone .tk .key{flex:1;height:58px}
+.vslider{flex:1;width:70px;border-radius:35px;position:relative;cursor:pointer;touch-action:none}
+.vslider i{position:absolute;left:7px;right:7px;bottom:7px;border-radius:28px;background:linear-gradient(0deg,var(--cool),var(--heat))}
+#climCar{min-height:0;overflow:hidden;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;position:relative}
+#climCar svg{flex:1 1 0;min-height:0;width:100%}
+.seatg{cursor:pointer}
+#climBottom{grid-column:1/4;padding:16px 20px;display:flex;align-items:center;gap:18px}
+.fanbars{display:flex;align-items:flex-end;gap:5px;height:46px;padding:6px 10px;cursor:pointer}
+.fanbars i{width:12px;border-radius:4px;background:var(--well);box-shadow:var(--sh-in);transition:background .2s}
+.fanbars i.f{background:var(--accent);box-shadow:none}
+.tg{height:58px;padding:0 16px;gap:8px;font-weight:600;font-size:15px}
+.tg svg{width:22px;height:22px}
+
+/* Auto */
+#v-car{display:grid;grid-template-columns:1fr 470px;grid-template-rows:minmax(0,1fr);gap:22px;padding:6px}
+#carStage{min-height:0;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center}
+#carStage svg{position:absolute;inset:40px 10px 10px;width:calc(100% - 20px);height:calc(100% - 50px)}
+.part{cursor:pointer;transition:transform .45s cubic-bezier(.3,.8,.3,1.1),fill .3s}
+.tire{font:700 14px var(--font);fill:var(--ink)}
+#carSide{padding:22px;display:flex;flex-direction:column;gap:16px}
+#lockBig{height:72px;border-radius:22px;font-size:20px;font-weight:700;gap:12px;display:flex;align-items:center;justify-content:center}
+#lockBig svg{width:28px;height:28px}
+.swatches{display:flex;gap:12px}
+.swatch{width:46px;height:46px;border-radius:50%;box-shadow:var(--sh-sm);position:relative}
+.swatch.on::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:3px solid var(--ink)}
+.trow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:6px 0}
+.trow b{font-size:17px}
+.trow span{display:block;font-size:13px;color:var(--ink-soft);font-weight:500}
+
+/* Laden */
+#v-charge{display:grid;grid-template-columns:1fr 430px;gap:22px;padding:6px}
+#battCard{padding:30px;display:flex;flex-direction:column;gap:22px}
+#batt{height:150px;border-radius:34px;position:relative;padding:12px}
+#batt .fill{position:absolute;left:12px;top:12px;bottom:12px;border-radius:24px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 60%,#fff));transition:width .6s}
+#batt .lim{position:absolute;top:0;bottom:0;width:4px;background:var(--ink);border-radius:2px;opacity:.6}
+#batt .lim span{position:absolute;top:-26px;left:50%;transform:translateX(-50%);font-size:13px;font-weight:700;white-space:nowrap}
+#batt .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:700;letter-spacing:-.03em;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.25)}
+.charging #batt .fill{background-size:200% 100%;background-image:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 50%,#fff),var(--accent));animation:flow 2s linear infinite}
+@keyframes flow{to{background-position:-200% 0}}
+.stat4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.stat4 div{padding:16px;border-radius:18px;background:var(--well);box-shadow:var(--sh-in)}
+.stat4 b{display:block;font-size:24px}
+.stat4 span{font-size:13px;color:var(--ink-soft)}
+#chSide{padding:22px;display:flex;flex-direction:column;gap:16px}
+.timep{display:flex;align-items:center;gap:10px}
+.timep .key{width:44px;height:44px}
+.timep b{font-size:30px;min-width:96px;text-align:center}
+
+/* Instellingen */
+#v-settings{display:grid;grid-template-columns:300px 1fr;gap:22px;padding:6px}
+#setNav{padding:18px;display:flex;flex-direction:column;gap:8px}
+#setNav button{height:58px;border-radius:16px;display:flex;align-items:center;gap:14px;padding:0 16px;font-size:17px;font-weight:600;color:var(--ink-soft);text-align:left}
+#setNav button.on{background:var(--well);box-shadow:var(--sh-in);color:var(--accent)}
+#setBody{padding:26px 30px;display:flex;flex-direction:column;gap:6px}
+.sp-sec{display:none;flex-direction:column;gap:12px}
+.sp-sec.on{display:flex}
+.updbar{height:12px;border-radius:6px;background:var(--well);box-shadow:var(--sh-in);overflow:hidden}
+.updbar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+
+/* Bluetooth */
+.bt-dev{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:18px}
+.bt-dev .ic{width:46px;height:46px;border-radius:14px;flex:none;color:var(--ink-soft)}
+.bt-dev.conn .ic{color:var(--accent)}
+.bt-dev b{display:block;font-size:17px}
+.bt-dev span.st{font-size:14px;color:var(--ink-soft)}
+.bt-dev.conn span.st{color:var(--accent);font-weight:600}
+.bt-dev .acts{margin-left:auto;display:flex;gap:10px}
+.bt-dev .acts .key{height:44px;padding:0 16px;font-size:14px;font-weight:700}
+.bt-dev .acts .fx{width:44px;padding:0}
+.bt-hd{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.spin{width:18px;height:18px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:sp .8s linear infinite;display:inline-block;vertical-align:-3px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.paircard{padding:18px 20px;border-radius:20px;background:var(--well);box-shadow:var(--sh-in);display:flex;flex-direction:column;gap:12px}
+.paircard .code{font-size:34px;font-weight:700;letter-spacing:.12em;text-align:center}
+#btStat{display:flex;align-items:center;gap:6px;color:var(--ink-soft);height:36px;padding:0 6px;border-radius:12px}
+#btStat.on{color:var(--accent)}
+#btStat.off{opacity:.45}
+.phconn{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-soft);padding:2px 4px;cursor:pointer}
+.phconn svg{width:18px;height:18px}
+.phconn b{color:var(--ink)}
+.bt-off-msg{padding:22px;text-align:center;color:var(--ink-soft);font-size:16px}
+
+/* ===== Dock ====================================================== */
+#dock{position:absolute;left:104px;right:22px;bottom:16px;height:76px;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:10}
+.dz{display:flex;align-items:center;gap:8px}
+.dz .key{width:48px;height:48px;border-radius:14px}
+.dz b{font-size:26px;font-weight:700;min-width:76px;text-align:center}
+#dock .grow{flex:1}
+#dock .sh{width:48px;height:48px;border-radius:14px;position:relative}
+.lv{position:absolute;bottom:5px;left:50%;transform:translateX(-50%);display:flex;gap:3px}
+.lv i{width:6px;height:3px;border-radius:2px;background:var(--line)}
+.lv i.f{background:var(--heat)}
+#dockMini{display:flex;align-items:center;gap:12px;height:56px;padding:0 10px 0 6px;border-radius:18px;cursor:pointer;max-width:330px}
+#dockMini .art{width:44px;height:44px;border-radius:12px;flex:none}
+#dockMini b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+#dockMini span{font-size:13px;color:var(--ink-soft)}
+#dockMini .key{width:44px;height:44px;border-radius:50%}
+.vol{display:flex;align-items:center;gap:8px}
+.vol .key{width:48px;height:48px;border-radius:14px}
+.vol b{min-width:34px;text-align:center;font-size:18px}
+
+/* ===== Overlays ================================================== */
+.scrim{position:absolute;inset:0;background:rgba(20,24,30,.35);opacity:0;pointer-events:none;transition:opacity .25s;z-index:50}
+.scrim.show{opacity:1;pointer-events:auto}
+#drawer{position:absolute;top:0;right:0;bottom:0;width:420px;z-index:60;padding:26px;display:flex;flex-direction:column;gap:14px;border-radius:28px 0 0 28px;
+  transform:translateX(105%);transition:transform .35s cubic-bezier(.2,.9,.3,1)}
+#drawer.show{transform:none}
+.nitem{display:flex;gap:14px;padding:14px;border-radius:18px;text-align:left;width:100%;align-items:flex-start}
+.nitem:hover{background:var(--well)}
+.nitem .ic{width:44px;height:44px;border-radius:14px;flex:none;display:grid;place-items:center;color:#fff}
+.nitem b{display:block;font-size:16px}
+.nitem span{font-size:14px;color:var(--ink-soft)}
+#profMenu{position:absolute;top:64px;right:26px;width:300px;padding:14px;z-index:60;display:none;flex-direction:column;gap:6px}
+#profMenu.show{display:flex}
+#profMenu button{display:flex;align-items:center;gap:12px;padding:10px;border-radius:14px;font-size:16px;font-weight:600;text-align:left}
+#profMenu button:hover{background:var(--well)}
+#voice{position:absolute;left:50%;top:50%;width:720px;transform:translate(-50%,-46%) scale(.96);opacity:0;pointer-events:none;z-index:60;padding:34px;
+  display:flex;flex-direction:column;align-items:center;gap:22px;transition:.28s}
+#voice.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+.wave{display:flex;gap:8px;align-items:center;height:80px}
+.wave i{width:10px;border-radius:5px;background:var(--accent);animation:wv 1s ease-in-out infinite alternate}
+@keyframes wv{from{height:10px}to{height:76px}}
+#vText{font-size:24px;font-weight:700;text-align:center;min-height:32px}
+.vchips{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.vchips .key{height:50px;padding:0 20px;font-size:16px;font-weight:600}
+#callUI{position:absolute;inset:40px 160px;z-index:70;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  opacity:0;pointer-events:none;transform:scale(.96);transition:.28s}
+#callUI.show{opacity:1;pointer-events:auto;transform:none}
+#callUI .av{width:120px;height:120px;font-size:42px;box-shadow:var(--sh-out)}
+#callName{font-size:34px;font-weight:700}
+#callState{font-size:18px;color:var(--ink-soft)}
+.cbtns{display:flex;gap:18px;margin-top:10px}
+.cbtns .key{width:84px;height:84px;border-radius:50%;flex-direction:column;gap:4px;font-size:12px;font-weight:600}
+.cbtns .end{background:var(--bad)!important;color:#fff;box-shadow:var(--sh-sm),0 10px 22px -10px var(--bad)!important}
+.cbtns .end svg{transform:rotate(135deg)}
+#toast{position:absolute;left:50%;bottom:110px;transform:translate(-50%,20px);opacity:0;padding:14px 22px;border-radius:18px;z-index:90;font-size:17px;font-weight:600;
+  transition:.3s;pointer-events:none;display:flex;align-items:center;gap:10px;white-space:nowrap}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#toast i{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="fit"><div id="screen">
+
+ <!-- RAIL -->
+ <nav id="rail" aria-label="Hoofdmenu">
+  <button class="nav on" data-go="home" aria-label="Start"></button>
+  <button class="nav" data-go="nav" aria-label="Navigatie"></button>
+  <button class="nav" data-go="media" aria-label="Media"></button>
+  <button class="nav" data-go="phone" aria-label="Telefoon"></button>
+  <button class="nav" data-go="climate" aria-label="Klimaat"></button>
+  <button class="nav" data-go="car" aria-label="Auto"></button>
+  <button class="nav" data-go="charge" aria-label="Laden"></button>
+  <button class="nav" data-go="settings" aria-label="Instellingen"></button>
+  <div class="sp"></div>
+  <button id="micBtn" aria-label="Spraakassistent"></button>
+ </nav>
+
+ <!-- STATUS -->
+ <header id="status">
+  <span id="clock" class="num">14:32</span>
+  <span class="st" id="stTemp"></span>
+  <button id="callPill"></button>
+  <button id="guidePill"></button>
+  <span class="grow"></span>
+  <span class="st" id="stIcons"></span>
+  <button id="bell" class="key" aria-label="Meldingen"><b id="bellN">3</b></button>
+  <button id="profBtn" class="key"><span class="av" id="profAv" style="background:#2F5BFF">S</span><span id="profName" style="font-weight:700">Sam</span></button>
+ </header>
+
+ <main id="views">
+
+  <!-- HOME -->
+  <section class="view on" id="v-home">
+   <div class="card raised" id="hNav" data-go="nav" tabindex="0">
+    <div class="mini" id="miniMap"></div>
+    <div class="bot">
+     <div class="h1" id="greet">Goeiemiddag, Sam</div>
+     <div class="search well" style="margin-top:14px" data-go="nav" data-focus="1"><span id="srchI"></span>Waar wil je naartoe?</div>
+     <div class="chips" id="homeChips"></div>
+    </div>
+   </div>
+   <div class="card raised" id="hMedia" data-go="media" tabindex="0">
+    <div class="lbl">Nu aan het spelen</div>
+    <div class="row" style="gap:16px">
+     <div class="art" id="hArt"></div>
+     <div style="min-width:0"><div class="h2" id="hTitle"></div><div class="lbl" id="hArtist" style="margin:4px 0 0"></div></div>
+    </div>
+    <div class="ctrls"><button class="key" data-act="prev"></button><button class="key" data-act="play" id="hPlay"></button><button class="key" data-act="next"></button><button class="key" data-act="like" id="hLike"></button></div>
+   </div>
+   <div class="card raised" id="hCar" data-go="charge" tabindex="0">
+    <div class="lbl">Batterij</div>
+    <div class="row" style="gap:10px;align-items:baseline"><span class="big num" id="hBatt">74</span><span class="unit">%</span><span class="lbl" style="margin-left:auto" id="hRange">296 km</span></div>
+    <div class="bar" style="margin-top:16px"><i id="hBattBar" style="width:74%"></i></div>
+    <div class="row" style="margin-top:18px;gap:12px">
+     <button class="key chip" data-act="lock" id="hLock"></button>
+     <span class="lbl" id="hChargeTxt" style="margin:0">Niet aan het laden</span>
+    </div>
+   </div>
+   <div class="card raised" id="hClim" data-go="climate" tabindex="0">
+    <div class="lbl">Klimaat</div>
+    <div class="row" style="gap:10px;align-items:baseline"><span class="big num" id="hTemp">21,0°</span><span class="lbl" style="margin-left:auto">Buiten 9°</span></div>
+    <div class="row" style="margin-top:18px;gap:12px">
+     <button class="key chip" data-act="ac" id="hAc"></button>
+     <button class="key chip" data-act="seatL" id="hSeat"></button>
+    </div>
+   </div>
+   <div class="card raised" id="hPhone" data-go="phone" tabindex="0">
+    <div class="lbl">Favorieten bellen</div>
+    <div class="favs" id="homeFavs"></div>
+   </div>
+  </section>
+
+  <!-- NAV -->
+  <section class="view" id="v-nav">
+   <div id="map"></div>
+   <div id="guide"><div class="gi" id="gIcon"></div><div><b id="gDist">300 m</b><span id="gText">Rechtdoor</span></div></div>
+   <div id="navPanel" class="raised"></div>
+   <div class="mapctl">
+    <button class="key" id="zIn" aria-label="Inzoomen"></button>
+    <button class="key" id="zOut" aria-label="Uitzoomen"></button>
+    <button class="key" id="zMe" aria-label="Centreren"></button>
+    <button class="key" id="lTraffic" aria-label="Verkeer tonen"></button>
+    <button class="key" id="lCharge" aria-label="Laadpalen tonen"></button>
+   </div>
+  </section>
+
+  <!-- MEDIA -->
+  <section class="view" id="v-media">
+   <div id="npCard" class="raised">
+    <div id="npArt"><div class="vis"></div></div>
+    <div class="row" style="gap:12px;align-items:flex-start">
+     <div style="min-width:0;flex:1"><div id="npTitle"></div><div id="npArtist"></div></div>
+     <button class="key" style="width:48px;height:48px;margin-top:18px" data-act="like" id="mLike"></button>
+    </div>
+    <div id="seek"><i></i></div>
+    <div class="times num"><span id="tCur">0:00</span><span id="tDur">0:00</span></div>
+    <div class="mctl">
+     <button class="key" id="mShuf" aria-label="Willekeurig"></button>
+     <button class="key" data-act="prev" aria-label="Vorige"></button>
+     <button class="key pp" data-act="play" id="mPlay" aria-label="Afspelen"></button>
+     <button class="key" data-act="next" aria-label="Volgende"></button>
+     <button class="key" id="mRep" aria-label="Herhalen" style="position:relative"></button>
+    </div>
+   </div>
+   <div id="libCard" class="raised">
+    <div class="row" style="gap:14px">
+     <div class="seg" id="srcSeg" style="flex:1">
+      <button data-src="stream" class="on">Streaming</button><button data-src="radio">Radio</button><button data-src="pod">Podcasts</button><button data-src="bt">Bluetooth</button>
+     </div>
+     <button class="key" style="width:54px;height:54px" id="eqBtn" aria-label="Equalizer"></button>
+    </div>
+    <div class="tlist scroll" id="tlist"></div>
+    <div id="eqPanel">
+     <div class="row" style="justify-content:space-between"><div class="h2">Geluid</div><button class="key" style="width:48px;height:48px" id="eqClose" aria-label="Sluiten"></button></div>
+     <div class="seg" id="eqPre"><button data-p="flat" class="on">Neutraal</button><button data-p="bass">Bas</button><button data-p="voice">Spraak</button><button data-p="live">Live</button></div>
+     <div class="eqs" id="eqs"></div>
+    </div>
+   </div>
+  </section>
+
+  <!-- PHONE -->
+  <section class="view" id="v-phone">
+   <div id="phList" class="raised">
+    <div class="phconn" id="phConn"></div>
+    <div class="seg" id="phSeg"><button data-t="rec" class="on">Recent</button><button data-t="con">Contacten</button><button data-t="fav">Favorieten</button></div>
+    <div class="scroll" id="phItems" style="flex:1;display:flex;flex-direction:column;gap:6px"></div>
+   </div>
+   <div id="pad" class="raised">
+    <div id="padDisp" class="num"></div>
+    <div class="keys" id="keys"></div>
+    <div class="padact">
+     <button class="key" id="padDel" aria-label="Wissen"></button>
+     <button class="key callb" id="padCall" aria-label="Bellen"></button>
+     <button class="key" id="padClr" style="font-weight:700;font-size:15px">Wis</button>
+    </div>
+   </div>
+  </section>
+
+  <!-- CLIMATE -->
+  <section class="view" id="v-climate">
+   <div class="zone raised">
+    <div class="lbl">Bestuurder</div>
+    <div class="big num" id="cTL">21,0°</div>
+    <div class="vslider well" id="vsL"><i></i></div>
+    <div class="tk"><button class="key" data-t="L" data-d="-0.5"></button><button class="key" data-t="L" data-d="0.5"></button></div>
+   </div>
+   <div id="climCar" class="raised"></div>
+   <div class="zone raised">
+    <div class="lbl">Passagier</div>
+    <div class="big num" id="cTR">21,0°</div>
+    <div class="vslider well" id="vsR"><i></i></div>
+    <div class="tk"><button class="key" data-t="R" data-d="-0.5"></button><button class="key" data-t="R" data-d="0.5"></button></div>
+   </div>
+   <div id="climBottom" class="raised">
+    <div><div class="lbl">Ventilator</div><div class="fanbars" id="fanbars"></div></div>
+    <div class="seg" id="flowSeg" style="width:300px"><button data-f="face" class="on">Gezicht</button><button data-f="both">Beide</button><button data-f="feet">Voeten</button></div>
+    <span style="flex:1"></span>
+    <button class="key tg" data-tg="auto"></button>
+    <button class="key tg" data-tg="ac"></button>
+    <button class="key tg" data-tg="recirc"></button>
+    <button class="key tg" data-tg="defrost"></button>
+    <button class="key tg" data-tg="sync"></button>
+   </div>
+  </section>
+
+  <!-- CAR -->
+  <section class="view" id="v-car">
+   <div id="carStage" class="raised"></div>
+   <div id="carSide" class="raised scroll">
+    <button id="lockBig" class="key"></button>
+    <div><div class="lbl" style="margin-bottom:8px">Rijmodus</div>
+     <div class="seg" id="modeSeg"><button data-m="eco">Eco</button><button data-m="comfort" class="on">Comfort</button><button data-m="sport">Sport</button><button data-m="snow">Sneeuw</button></div>
+     <div class="lbl" id="modeTxt" style="margin-top:8px">Evenwicht tussen comfort en verbruik.</div></div>
+    <div><div class="lbl" style="margin-bottom:8px">Verlichting</div>
+     <div class="seg" id="lightSeg"><button data-l="off">Uit</button><button data-l="auto" class="on">Auto</button><button data-l="park">Park</button><button data-l="on">Aan</button></div></div>
+    <div class="trow"><div><b>Spiegels inklappen</b></div><button class="sw" id="swMirror" aria-label="Spiegels inklappen"></button></div>
+    <div class="trow"><div><b>Kinderslot achter</b></div><button class="sw on" id="swChild" aria-label="Kinderslot"></button></div>
+    <div><div class="lbl" style="margin-bottom:10px">Sfeerverlichting</div><div class="swatches" id="swatches"></div></div>
+   </div>
+  </section>
+
+  <!-- CHARGE -->
+  <section class="view" id="v-charge">
+   <div id="battCard" class="raised">
+    <div class="row"><div class="h1">Batterij</div><span class="lbl" style="margin-left:auto" id="chState">Kabel aangesloten</span></div>
+    <div id="batt" class="well"><div class="fill"></div><div class="lim"><span></span></div><div class="pct num">74 %</div></div>
+    <div class="stat4">
+     <div><b class="num" id="chRange">296 km</b><span>Bereik</span></div>
+     <div><b class="num" id="chPow">0 kW</b><span>Laadvermogen</span></div>
+     <div><b class="num" id="chEta">–</b><span>Tot limiet</span></div>
+     <div><b class="num" id="chAdded">+0 km</b><span>Bijgeladen</span></div>
+    </div>
+    <button class="btnP" id="chBtn" style="height:64px;font-size:20px">Start met laden</button>
+   </div>
+   <div id="chSide" class="raised">
+    <div><div class="row" style="justify-content:space-between"><b style="font-size:17px">Laadlimiet</b><b class="num" id="limTxt">90 %</b></div>
+     <input type="range" id="limR" min="50" max="100" step="5" value="90" style="margin-top:14px" aria-label="Laadlimiet"></div>
+    <div class="trow"><div><b>Laden volgens planning</b><span>Laden tijdens daltarief, 22:00–06:00</span></div><button class="sw" id="swSched" aria-label="Laden volgens planning"></button></div>
+    <div><b style="font-size:17px">Vertrek</b><div class="row" style="justify-content:space-between;margin-top:10px">
+     <div class="timep"><button class="key" data-tp="h-"></button><b class="num" id="depT">07:30</b><button class="key" data-tp="h+"></button></div>
+     <div class="timep"><button class="key" data-tp="m-" style="font-weight:700">−15</button><button class="key" data-tp="m+" style="font-weight:700">+15</button></div></div></div>
+    <div class="trow"><div><b>Voorverwarmen</b><span>Auto warm en ontdooid bij vertrek</span></div><button class="sw on" id="swPre" aria-label="Voorverwarmen"></button></div>
+    <button class="key btnS" id="portBtn" style="margin-top:auto">Laadklep openen</button>
+   </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view" id="v-settings">
+   <div id="setNav" class="raised">
+    <button data-s="display" class="on"></button><button data-s="bluetooth"></button><button data-s="sound"></button><button data-s="assist"></button><button data-s="profiles"></button><button data-s="system"></button>
+   </div>
+   <div id="setBody" class="raised scroll">
+    <div class="sp-sec on" id="s-display">
+     <div class="h1">Scherm</div>
+     <div><div class="row" style="justify-content:space-between;margin-top:10px"><b style="font-size:17px">Helderheid</b><b class="num" id="brTxt">100 %</b></div><input type="range" id="brR" min="40" max="100" value="100" style="margin-top:12px" aria-label="Helderheid"></div>
+     <div style="margin-top:8px"><b style="font-size:17px">Weergave</b><div class="seg" id="themeSeg" style="margin-top:10px"><button data-th="light" class="on">Licht</button><button data-th="dark">Donker</button><button data-th="auto">Automatisch</button></div></div>
+     <div style="margin-top:8px"><b style="font-size:17px">Eenheden</b><div class="seg" id="unitSeg" style="margin-top:10px"><button data-u="km" class="on">Kilometer</button><button data-u="mi">Mijl</button></div></div>
+    </div>
+    <div class="sp-sec" id="s-bluetooth">
+     <div class="h1">Bluetooth</div>
+     <div class="trow"><div><b>Bluetooth</b><span id="btVis">Zichtbaar als "Mijn auto"</span></div><button class="sw on" id="swBt" aria-label="Bluetooth aan of uit"></button></div>
+     <div id="btBody"></div>
+    </div>
+    <div class="sp-sec" id="s-sound">
+     <div class="h1">Geluid</div>
+     <div class="trow"><div><b>Toetsgeluiden</b><span>Klik bij aanraking van het scherm</span></div><button class="sw on" data-sw></button></div>
+     <div class="trow"><div><b>Navigatiestem</b><span>Gesproken aanwijzingen tijdens het rijden</span></div><button class="sw on" data-sw></button></div>
+     <div class="trow"><div><b>Volume aanpassen aan snelheid</b><span>Muziek luider bij hogere snelheid</span></div><button class="sw" data-sw></button></div>
+     <div class="trow"><div><b>Media dempen bij oproep</b></div><button class="sw on" data-sw></button></div>
+    </div>
+    <div class="sp-sec" id="s-assist">
+     <div class="h1">Rijhulp</div>
+     <div class="trow"><div><b>Rijstrookassistent</b><span>Stuurt licht bij als je de lijn nadert</span></div><button class="sw on" data-sw></button></div>
+     <div class="trow"><div><b>Dodehoekwaarschuwing</b><span>Lampje in de spiegel bij verkeer naast je</span></div><button class="sw on" data-sw></button></div>
+     <div class="trow"><div><b>Verkeersbordherkenning</b><span>Toont de snelheidslimiet</span></div><button class="sw on" data-sw></button></div>
+     <div class="trow"><div><b>Eén-pedaalrijden</b><span>Sterk regeneratief remmen bij loslaten</span></div><button class="sw" data-sw></button></div>
+    </div>
+    <div class="sp-sec" id="s-profiles">
+     <div class="h1">Profielen</div>
+     <div class="lbl">Elk profiel onthoudt stoel, spiegels, klimaat en muziek.</div>
+     <div id="profList" style="display:flex;flex-direction:column;gap:8px;margin-top:6px"></div>
+    </div>
+    <div class="sp-sec" id="s-system">
+     <div class="h1">Systeem</div>
+     <div class="trow"><div><b>Softwareversie</b><span id="swVer">2026.44.1</span></div><button class="key btnS" id="updBtn" style="padding:0 22px;height:52px">Controleren</button></div>
+     <div class="updbar" id="updBar" style="display:none"><i></i></div>
+     <div class="lbl" id="updTxt"></div>
+     <div class="trow" style="margin-top:10px"><div><b>Wifi-hotspot</b><span>Deel de verbinding van de auto</span></div><button class="sw" data-sw></button></div>
+    </div>
+   </div>
+  </section>
+ </main>
+
+ <!-- DOCK -->
+ <footer id="dock" class="raised">
+  <div class="dz"><button class="key" data-t="L" data-d="-0.5" aria-label="Bestuurder kouder"></button><b class="num" id="dTL">21,0°</b><button class="key" data-t="L" data-d="0.5" aria-label="Bestuurder warmer"></button></div>
+  <button class="key sh" data-seat="fl" id="dSeatL" aria-label="Stoelverwarming bestuurder"></button>
+  <span class="grow"></span>
+  <div id="dockMini" class="well" data-go="media"><div class="art" id="dArt"></div><div style="min-width:0"><b id="dTitle"></b><span id="dArtist"></span></div><button class="key" data-act="play" id="dPlay"></button></div>
+  <div class="vol"><button class="key" id="volDn" aria-label="Zachter"></button><b class="num" id="volTxt">12</b><button class="key" id="volUp" aria-label="Luider"></button><button class="key" id="volMute" aria-label="Dempen"></button></div>
+  <span class="grow"></span>
+  <button class="key sh" data-seat="fr" id="dSeatR" aria-label="Stoelverwarming passagier"></button>
+  <div class="dz"><button class="key" data-t="R" data-d="-0.5" aria-label="Passagier kouder"></button><b class="num" id="dTR">21,0°</b><button class="key" data-t="R" data-d="0.5" aria-label="Passagier warmer"></button></div>
+ </footer>
+
+ <!-- OVERLAYS -->
+ <div class="scrim" id="scrim"></div>
+ <aside id="drawer" class="raised">
+  <div class="row" style="justify-content:space-between"><div class="h1">Meldingen</div><button class="key" style="width:48px;height:48px" id="drClose" aria-label="Sluiten"></button></div>
+  <div id="nlist" class="scroll" style="flex:1;display:flex;flex-direction:column;gap:6px"></div>
+  <button class="key btnS" id="nClear">Alles wissen</button>
+ </aside>
+ <div id="profMenu" class="raised"></div>
+ <div id="voice" class="raised">
+  <div class="wave" id="wave"></div>
+  <div id="vText">Waarmee kan ik helpen?</div>
+  <div class="vchips" id="vchips"></div>
+  <button class="key btnS" id="vClose" style="padding:0 28px;height:50px">Annuleren</button>
+ </div>
+ <div id="callUI" class="raised">
+  <div class="av" id="cAv">N</div>
+  <div id="callName">Noor</div>
+  <div id="callState" class="num">Bellen…</div>
+  <div class="cbtns">
+   <button class="key" id="cMute"></button>
+   <button class="key" id="cPad"></button>
+   <button class="key" id="cSpk"></button>
+   <button class="key end" id="cEnd"></button>
+  </div>
+ </div>
+ <div id="toast" class="raised"><i></i><span></span></div>
+ <div id="dim"></div>
+</div></div>
+
+<script>
+(function(){
+var $=function(id){return document.getElementById(id);};
+var Q=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
+var fit=$('fit'), scr=$('screen');
+function scale(){ scr.style.transform='scale('+(fit.clientWidth/1280)+')'; }
+window.addEventListener('resize',scale); scale();
+
+/* ---------- iconen ---------- */
+var P={
+ home:'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
+ nav:'M12 2l7 19-7-4-7 4z',
+ music:'M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
+ phone:'M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z',
+ fan:'M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM12 10c-1-4 1-7 4-6s2 5-2 6M14 12c4-1 7 1 6 4s-5 2-6-2M12 14c1 4-1 7-4 6s-2-5 2-6M10 12c-4 1-7-1-6-4s5-2 6 2',
+ car:'M3 17v-4l2.2-5.2A2 2 0 0 1 7 6.5h10a2 2 0 0 1 1.8 1.3L21 13v4M3 13h18M5 17h14M5 17v2M19 17v2M7 15h.01M17 15h.01',
+ bolt:'M13 2L4 14h7l-1 8 9-12h-7z',
+ gear:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
+ mic:'M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3zM19 10v1a7 7 0 0 1-14 0v-1M12 18v4',
+ bell:'M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0',
+ lock:'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4',
+ unlock:'M5 11h14v10H5zM8 11V7a4 4 0 0 1 7.8-1.2',
+ prev:'M19 20L9 12l10-8zM5 19V5',
+ next:'M5 4l10 8-10 8zM19 5v14',
+ shuffle:'M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5',
+ repeat:'M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3',
+ heart:'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z',
+ search:'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3',
+ x:'M18 6L6 18M6 6l12 12', minus:'M5 12h14', plus:'M12 5v14M5 12h14',
+ seat:'M8 3v11a2 2 0 0 0 2 2h6l2 5M6 21h13M13 3c-1 2 1 3 0 5M17 3c-1 2 1 3 0 5',
+ snow:'M12 2v20M4.9 4.9l14.2 14.2M2 12h20M4.9 19.1L19.1 4.9',
+ recirc:'M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5',
+ defrost:'M3 18c3-9 15-9 18 0zM8 10c-1 2 1 3 0 5M12 9c-1 2 1 3 0 5M16 10c-1 2 1 3 0 5',
+ auto:'M4 20L10 4h4l6 16M7 13h10',
+ sync:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+ back:'M15 18l-6-6 6-6', chev:'M9 18l6-6-6-6',
+ vol:'M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14',
+ volDn:'M11 5L6 9H2v6h4l5 4zM16 12h5', volUp:'M11 5L6 9H2v6h4l5 4zM16 12h6M19 9v6',
+ mute:'M11 5L6 9H2v6h4l5 4zM23 9l-6 6M17 9l6 6',
+ pin:'M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+ bt:'M7 7l10 10-5 5V2l5 5L7 17', signal:'M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 20V4',
+ wheel:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM3.5 10.5h6.5M14 10.5h6.5M12 14v7',
+ eq:'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+ target:'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v3M12 19v3M2 12h3M19 12h3',
+ layers:'M12 2L2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+ traffic:'M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM12 7h.01M12 12h.01M12 17h.01',
+ keypad:'M5 5h.01M12 5h.01M19 5h.01M5 12h.01M12 12h.01M19 12h.01M5 19h.01M12 19h.01M19 19h.01',
+ del:'M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM18 9l-6 6M12 9l6 6',
+ turnR:'M5 20v-8a4 4 0 0 1 4-4h10M15 4l4 4-4 4', turnL:'M19 20v-8a4 4 0 0 0-4-4H5M9 4L5 8l4 4', up:'M12 20V4M6 10l6-6 6 6',
+ flag:'M4 22V4M4 4h13l-2 4 2 4H4',
+ user:'M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z',
+ display:'M3 4h18v12H3zM8 20h8M12 16v4', sound:'M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7',
+ shield:'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', chip:'M6 6h12v12H6zM9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4',
+ star:'M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z',
+ cal:'M4 5h16v16H4zM4 10h16M9 3v4M15 3v4', check:'M20 6L9 17l-5-5'
+};
+function I(n,f){ if(n==='play') return '<svg class="i f" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>';
+  if(n==='pause') return '<svg class="i f" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1.5"/><rect x="14" y="4" width="4" height="16" rx="1.5"/></svg>';
+  return '<svg class="i'+(f?' f':'')+'" viewBox="0 0 24 24"><path d="'+P[n]+'"/></svg>'; }
+
+/* ---------- state ---------- */
+var S={view:'home',theme:'light',ambient:'#2F5BFF',mode:'comfort',tL:21,tR:21,seat:{fl:1,fr:0,rl:0,rr:0},wheel:false,fan:3,
+  tg:{auto:true,ac:true,recirc:false,defrost:false,sync:false},flow:'face',
+  src:'stream',idx:0,playing:true,pos:62,shuffle:false,rep:0,liked:{},vol:12,muted:false,eq:[0,0,0,0,0],
+  batt:74,limit:90,charging:false,added:0,dep:[7,30],locked:true,doors:{fl:0,fr:0,rl:0,rr:0,trunk:0,frunk:0,port:0},
+  units:'km',profile:0,route:null,guiding:false,call:null,pad:''};
+var PROFILES=[{n:'Sam',c:'#2F5BFF',t:21},{n:'Noor',c:'#E0457B',t:22.5},{n:'Gast',c:'#7A8794',t:20}];
+var CONTACTS=[{n:'Noor',c:'#E0457B',num:'0471 23 45 67'},{n:'Mama',c:'#F29E38',num:'0498 11 22 33'},{n:'Jonas',c:'#17A866',num:'0485 66 77 88'},
+  {n:'Lotte',c:'#8B5CF6',num:'0476 90 12 34'},{n:'Garage Desmet',c:'#2AA8F2',num:'056 22 33 44'},{n:'Ruben',c:'#E5383B',num:'0472 55 44 33'},{n:'Elise',c:'#0EA5A4',num:'0491 77 88 99'}];
+var RECENT=[{i:0,t:'Vandaag 13:05',miss:true},{i:1,t:'Vandaag 09:12'},{i:4,t:'Gisteren 16:40'},{i:2,t:'Gisteren 11:02'},{i:3,t:'Ma 18:22',miss:true},{i:5,t:'Zo 10:15'}];
+var LIB={
+ stream:[['Lage zon','Velden & Vos',214,'#FF8A3D','#7C3AED'],['Glazen huis','Mira Lune',187,'#22D3EE','#2563EB'],['Tegenwind','De Noordkant',241,'#34D399','#065F46'],['Middernachtbus','Kobalt',198,'#6366F1','#0F172A'],['Zoutwater','Anouk Verheyen',226,'#F472B6','#9D174D'],['Koperen dak','Velden & Vos',203,'#FBBF24','#B45309'],['Stille stad','Mira Lune',259,'#94A3B8','#1E293B']],
+ radio:[['Noorderlicht','Avondradio, 101,4 FM',0,'#38BDF8','#1E3A8A'],['Stadsradio','104,1 FM',0,'#FB923C','#7C2D12'],['Klassiek Vlaanderen','89,5 FM',0,'#C4B5FD','#4C1D95'],['Jazzlijn','92,7 FM',0,'#FDE68A','#78350F'],['Verkeer & Nieuws','96,0 FM',0,'#86EFAC','#14532D']],
+ pod:[['Hoe werkt dat eigenlijk?','Afl. 42, Batterijen',1860,'#F59E0B','#1F2937'],['De Ontwerpers','Afl. 12, Stoelen',2410,'#10B981','#064E3B'],['Kort Nieuws','Vandaag',540,'#EF4444','#450A0A'],['Stille uren','Afl. 7, Slaap',2980,'#818CF8','#1E1B4B']],
+ bt:[['Telefoon van Sam','Verbonden via Bluetooth',0,'#64748B','#0F172A']]
+};
+var MODES={eco:['#17A866','Zuinig: zachter optrekken, klimaat spaarzamer.'],comfort:[null,'Evenwicht tussen comfort en verbruik.'],
+  sport:['#FF4B2B','Directe reactie op het gaspedaal, stuur zwaarder.'],snow:['#2AA8F2','Voorzichtig optrekken voor meer grip.']};
+var AMB=['#2F5BFF','#8B5CF6','#E0457B','#FF6B2C','#F2B705','#17A866','#0EA5A4'];
+
+/* ---------- helpers ---------- */
+var toastT;
+function toast(t){ var e=$('toast'); e.querySelector('span').textContent=t; e.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(function(){e.classList.remove('show');},1900); }
+function fmtT(t){ return t.toFixed(1).replace('.',',')+'°'; }
+function mmss(s){ s=Math.max(0,Math.round(s)); return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2); }
+function dist(km){ return S.units==='km' ? (km<1? Math.round(km*1000)+' m' : km.toFixed(1).replace('.',',')+' km') : (km*0.621).toFixed(1).replace('.',',')+' mi'; }
+function grad(a,b){ return 'linear-gradient(135deg,'+a+','+b+')'; }
+function cur(){ return LIB[S.src][S.idx]; }
+function accent(){ var m=MODES[S.mode][0]; return m||S.ambient; }
+function applyAccent(){ scr.style.setProperty('--accent',accent()); }
+
+/* ---------- rail + statische iconen ---------- */
+var railIcons={home:'home',nav:'nav',media:'music',phone:'phone',climate:'fan',car:'car',charge:'bolt',settings:'gear'};
+Q('#rail .nav').forEach(function(b){ b.innerHTML=I(railIcons[b.dataset.go]); });
+$('micBtn').innerHTML=I('mic');
+$('bell').insertAdjacentHTML('afterbegin',I('bell'));
+$('stTemp').innerHTML='9° Kortrijk';
+$('stIcons').innerHTML='<button id="btStat" aria-label="Bluetooth-instellingen">'+I('bt')+'</button>'+I('signal')+'<span>5G</span>';
+$('srchI').innerHTML=I('search');
+$('zIn').innerHTML=I('plus'); $('zOut').innerHTML=I('minus'); $('zMe').innerHTML=I('target'); $('lTraffic').innerHTML=I('traffic'); $('lCharge').innerHTML=I('bolt');
+$('mShuf').innerHTML=I('shuffle'); $('mRep').innerHTML=I('repeat'); Q('[data-act=prev]').forEach(function(b){b.innerHTML=I('prev');}); Q('[data-act=next]').forEach(function(b){b.innerHTML=I('next');});
+$('eqBtn').innerHTML=I('eq'); $('eqClose').innerHTML=I('x'); $('drClose').innerHTML=I('x');
+$('padDel').innerHTML=I('del'); $('padCall').innerHTML=I('phone');
+Q('[data-d]').forEach(function(b){ b.innerHTML=I(parseFloat(b.dataset.d)<0?'minus':'plus'); });
+$('volDn').innerHTML=I('volDn'); $('volUp').innerHTML=I('volUp');
+Q('[data-tp="h-"]').forEach(function(b){b.innerHTML=I('minus');}); Q('[data-tp="h+"]').forEach(function(b){b.innerHTML=I('plus');});
+var setIcons={display:['display','Scherm'],bluetooth:['bt','Bluetooth'],sound:['sound','Geluid'],assist:['shield','Rijhulp'],profiles:['user','Profielen'],system:['chip','Systeem']};
+Q('#setNav button').forEach(function(b){ var s=setIcons[b.dataset.s]; b.innerHTML=I(s[0])+s[1]; });
+$('cMute').innerHTML=I('mute')+'Dempen'; $('cPad').innerHTML=I('keypad')+'Toetsen'; $('cSpk').innerHTML=I('vol')+'Speaker'; $('cEnd').innerHTML=I('phone');
+$('npArt').querySelector('.vis').innerHTML=Array(14).join('<i></i>');
+Q('#npArt .vis i').forEach(function(i,k){ i.style.animationDelay=(k*0.07%0.6)+'s'; });
+$('wave').innerHTML=Array(10).join('<i></i>'); Q('#wave i').forEach(function(i,k){ i.style.animationDelay=(k*0.11)+'s'; });
+
+/* ---------- navigatie tussen schermen ---------- */
+function go(v,opt){
+  S.view=v;
+  Q('.view').forEach(function(e){ e.classList.toggle('on', e.id==='v-'+v); });
+  Q('#rail .nav').forEach(function(b){ b.classList.toggle('on', b.dataset.go===v); });
+  if(v==='nav' && opt && opt.focus && !S.route){ setTimeout(function(){ var i=$('dSearch'); if(i) i.focus(); },250); }
+}
+document.addEventListener('click',function(e){
+  var a=e.target.closest('[data-act]'); if(a){ e.stopPropagation(); act(a.dataset.act); return; }
+  var g=e.target.closest('[data-go]'); if(g && !e.target.closest('button:not([data-go])')){ go(g.dataset.go,{focus:g.dataset.focus}); }
+},true);
+Q('.card').forEach(function(c){ c.addEventListener('keydown',function(e){ if(e.key==='Enter'){ go(c.dataset.go); } }); });
+
+function act(a){
+  if(a==='play'){ S.playing=!S.playing; renderMedia(); toast(S.playing?'Afspelen':'Gepauzeerd'); }
+  else if(a==='next'){ nextTrack(1); }
+  else if(a==='prev'){ if(S.pos>3 && cur()[2]){ S.pos=0; renderMedia(); } else nextTrack(-1); }
+  else if(a==='like'){ var k=S.src+S.idx; S.liked[k]=!S.liked[k]; renderMedia(); toast(S.liked[k]?'Toegevoegd aan favorieten':'Verwijderd uit favorieten'); }
+  else if(a==='lock'){ toggleLock(); }
+  else if(a==='ac'){ S.tg.ac=!S.tg.ac; renderClimate(); toast('Airco '+(S.tg.ac?'aan':'uit')); }
+  else if(a==='seatL'){ cycleSeat('fl'); }
+}
+
+/* ---------- KAART ---------- */
+var DEST=[
+ {id:'home',n:'Thuis',a:'Doorniksestraat 18, Kortrijk',km:3.4,min:9,pts:[[520,520],[520,420],[300,420],[300,250]],ic:'home',c:'#2F5BFF',
+  steps:[['up','Rechtdoor','400 m'],['turnL','Links, Gentsesteenweg','1,2 km'],['turnR','Rechts, Doorniksestraat','1,1 km'],['flag','Bestemming rechts','700 m']]},
+ {id:'campus',n:'Campus Kortrijk',a:'Sint-Martens-Latemlaan, Kortrijk',km:5.1,min:12,trafficMin:4,pts:[[520,520],[520,420],[760,420],[760,180]],ic:'star',c:'#8B5CF6',
+  steps:[['up','Rechtdoor','400 m'],['turnR','Rechts, Ring R8','2,3 km'],['turnL','Links, Sint-Martens-Latemlaan','1,9 km'],['flag','Bestemming links','500 m']]},
+ {id:'station',n:'Station Kortrijk',a:'Stationsplein, Kortrijk',km:2.1,min:6,pts:[[520,520],[520,250]],ic:'pin',c:'#F29E38',
+  steps:[['up','Rechtdoor, Stationsstraat','1,6 km'],['flag','Bestemming rechtdoor','500 m']]},
+ {id:'sport',n:'Sportcentrum Lange Munte',a:'Lange Munte, Kortrijk',km:4.2,min:11,pts:[[520,520],[520,590],[180,590],[180,520]],ic:'flag',c:'#17A866',
+  steps:[['up','Rechtdoor','300 m'],['turnR','Rechts, Kennedylaan','2,9 km'],['turnR','Rechts, Lange Munte','600 m'],['flag','Bestemming rechts','400 m']]},
+ {id:'fast',n:'Snellader Kortrijk-Oost',a:'E17 afrit 2, Kortrijk',km:6.8,min:10,pts:[[520,520],[520,590],[880,590],[880,640]],ic:'bolt',c:'#0EA5A4',
+  steps:[['up','Rechtdoor','300 m'],['turnL','Links, richting E17','4,8 km'],['turnR','Rechts, afrit 2','1,2 km'],['flag','Laadstation links','500 m']]}
+];
+var MV={x:180,y:0,z:1}, layers={traffic:false,charge:false};
+function mapSVG(mini){
+  var r='';
+  r+='<rect x="-1000" y="-1000" width="3000" height="2700" fill="var(--map-land)"/>';
+  r+='<path d="M-200 330 C 100 290 220 380 420 340 S 760 270 900 320 1300 360 1300 360" stroke="var(--map-water)" stroke-width="34" fill="none"/>';
+  r+='<path d="M60 120 h170 v90 h-170z M610 470 h120 v80 h-120z M360 600 h120 v70 h-120z M820 120 h120 v120 h-120z" fill="var(--map-park)" rx="20"/>';
+  r+='<ellipse cx="520" cy="380" rx="360" ry="250" stroke="var(--map-road)" stroke-width="16" fill="none"/>';
+  var minor=[[0,170,1000,170],[0,500,1000,500],[400,0,400,700],[640,0,640,700],[180,300,180,700],[880,300,880,700],[0,640,1000,640]];
+  minor.forEach(function(l){ r+='<line x1="'+l[0]+'" y1="'+l[1]+'" x2="'+l[2]+'" y2="'+l[3]+'" stroke="var(--map-minor)" stroke-width="7"/>'; });
+  var major=[[0,420,1000,420],[0,250,1000,250],[0,590,1000,590],[300,0,300,700],[520,0,520,700],[760,0,760,700]];
+  major.forEach(function(l){ r+='<line x1="'+l[0]+'" y1="'+l[1]+'" x2="'+l[2]+'" y2="'+l[3]+'" stroke="var(--map-road)" stroke-width="13" stroke-linecap="round"/>'; });
+  if(!mini){
+    r+='<g id="lyTraffic" style="display:'+(layers.traffic?'block':'none')+'"><line x1="540" y1="420" x2="760" y2="420" stroke="#E5383B" stroke-width="7" stroke-linecap="round"/><line x1="300" y1="250" x2="510" y2="250" stroke="#F29E38" stroke-width="7" stroke-linecap="round"/><line x1="760" y1="250" x2="760" y2="420" stroke="#F29E38" stroke-width="7" stroke-linecap="round"/></g>';
+    r+='<g id="lyCharge" style="display:'+(layers.charge?'block':'none')+'">';
+    [[880,640],[300,170],[640,500],[180,300]].forEach(function(p){ r+='<g transform="translate('+p[0]+','+p[1]+')"><circle r="17" fill="#0EA5A4"/><path d="M1-9l-7 11h6l-1 7 7-11h-6z" fill="#fff"/></g>'; });
+    r+='</g>';
+    r+='<g font-family="ui-rounded,Segoe UI,sans-serif" font-size="17" font-weight="600" fill="var(--ink-soft)"><text x="320" y="410">Gentsesteenweg</text><text x="540" y="160">Stationsstraat</text><text x="780" y="400">Ring R8</text><text x="190" y="580">Kennedylaan</text><text x="230" y="315" font-style="italic">Leie</text></g>';
+    r+='<path id="routeHalo" d="" stroke="#fff" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>';
+    r+='<path id="routeLine" d="" stroke="var(--accent)" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+    r+='<g id="destPin" style="display:none"><path d="M0 0c-14-16-20-24-20-33a20 20 0 0 1 40 0c0 9-6 17-20 33z" fill="var(--accent)"/><circle cy="-33" r="7" fill="#fff"/></g>';
+    r+='<g id="me" transform="translate(520,520)"><circle r="30" fill="var(--accent)" opacity=".18"/><circle r="17" fill="#fff"/><path d="M0-11 L8 9 L0 4 L-8 9Z" fill="var(--accent)"/></g>';
+  } else {
+    r+='<path d="M520 520 V420 H300 V250" stroke="var(--accent)" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>';
+    r+='<g transform="translate(520,520)"><circle r="30" fill="var(--accent)" opacity=".18"/><circle r="17" fill="#fff"/><path d="M0-11 L8 9 L0 4 L-8 9Z" fill="var(--accent)"/></g>';
+  }
+  return r;
+}
+$('miniMap').innerHTML='<svg viewBox="180 230 680 400" preserveAspectRatio="xMidYMid slice">'+mapSVG(true)+'</svg>';
+$('map').innerHTML='<svg id="msvg" viewBox="0 0 1180 550" preserveAspectRatio="xMidYMid slice"><g id="world">'+mapSVG(false)+'</g></svg>';
+function applyMap(){ $('world').setAttribute('transform','translate('+(590+MV.x)+','+(275+MV.y)+') scale('+MV.z+') translate(-520,-420)'); }
+applyMap();
+// slepen
+(function(){ var m=$('map'),d=null;
+  m.addEventListener('pointerdown',function(e){ d={x:e.clientX,y:e.clientY,mx:MV.x,my:MV.y,moved:false}; m.setPointerCapture(e.pointerId); m.classList.add('drag'); });
+  m.addEventListener('pointermove',function(e){ if(!d) return; var k=1280/fit.clientWidth; var dx=(e.clientX-d.x)*k,dy=(e.clientY-d.y)*k; if(Math.abs(dx)+Math.abs(dy)>4) d.moved=true; MV.x=d.mx+dx; MV.y=d.my+dy; applyMap(); });
+  m.addEventListener('pointerup',function(){ d=null; m.classList.remove('drag'); });
+  m.addEventListener('wheel',function(e){ e.preventDefault(); zoom(e.deltaY<0?1.15:1/1.15); },{passive:false});
+})();
+function zoom(f){ MV.z=Math.max(.6,Math.min(2.6,MV.z*f)); applyMap(); }
+$('zIn').onclick=function(){zoom(1.25);}; $('zOut').onclick=function(){zoom(.8);};
+$('zMe').onclick=function(){ MV.x=180;MV.y=0;MV.z=1; applyMap(); toast('Kaart gecentreerd'); };
+$('lTraffic').onclick=function(){ layers.traffic=!layers.traffic; this.classList.toggle('on',layers.traffic); $('lyTraffic').style.display=layers.traffic?'block':'none'; toast('Verkeer '+(layers.traffic?'zichtbaar':'verborgen')); if(S.route) renderNav(); };
+$('lCharge').onclick=function(){ layers.charge=!layers.charge; this.classList.toggle('on',layers.charge); $('lyCharge').style.display=layers.charge?'block':'none'; toast('Laadpunten '+(layers.charge?'zichtbaar':'verborgen')); };
+
+var navMode='search', routePref='fast', q='';
+function eta(d){ var m=d.min+(layers.traffic&&d.trafficMin?d.trafficMin:0)+(routePref==='eco'?2:0)+(routePref==='nohw'?3:0);
+  var t=new Date(Date.now()+m*60000); return {m:m,arr:('0'+t.getHours()).slice(-2)+':'+('0'+t.getMinutes()).slice(-2)}; }
+function renderNav(){
+  var p=$('navPanel'), h='';
+  if(navMode==='search'){
+    h+='<div class="search well">'+I('search')+'<input id="dSearch" placeholder="Zoek een bestemming" value="'+q.replace(/"/g,'')+'"></div>';
+    h+='<div class="lbl">'+(q?'Resultaten':'Favorieten en recent')+'</div><div class="dlist scroll">';
+    DEST.filter(function(d){ return !q || (d.n+d.a).toLowerCase().indexOf(q.toLowerCase())>=0; }).forEach(function(d){
+      h+='<button class="ditem" data-dest="'+d.id+'"><span class="ic key" style="color:'+d.c+'">'+I(d.ic)+'</span><span style="min-width:0"><b>'+d.n+'</b><span>'+d.a+'</span></span><span class="km">'+dist(d.km)+'</span></button>'; });
+    h+='</div>';
+  } else if(navMode==='preview'){
+    var d=S.route, e=eta(d);
+    h+='<div class="row" style="gap:12px"><button class="key" style="width:46px;height:46px" id="navBack" aria-label="Terug">'+I('back')+'</button><div style="min-width:0"><div class="h2">'+d.n+'</div><div class="lbl">'+d.a+'</div></div></div>';
+    h+='<div class="stat3"><div><b class="num">'+e.m+' min</b><span>Reistijd</span></div><div><b class="num">'+dist(d.km)+'</b><span>Afstand</span></div><div><b class="num">'+e.arr+'</b><span>Aankomst</span></div></div>';
+    if(layers.traffic && d.trafficMin) h+='<div class="lbl" style="color:var(--bad);font-weight:600">+'+d.trafficMin+' min door druk verkeer op de Ring</div>';
+    h+='<div class="lbl">Batterij bij aankomst: <b style="color:var(--ink)">'+Math.max(0,Math.round(S.batt-d.km*0.25))+' %</b></div>';
+    h+='<div class="seg" id="prefSeg"><button data-p="fast"'+(routePref==='fast'?' class="on"':'')+'>Snelst</button><button data-p="eco"'+(routePref==='eco'?' class="on"':'')+'>Zuinig</button><button data-p="nohw"'+(routePref==='nohw'?' class="on"':'')+'>Geen snelweg</button></div>';
+    h+='<div style="flex:1"></div><button class="btnP" id="navStart">Start navigatie</button>';
+  } else {
+    var d2=S.route, e2=eta(d2);
+    h+='<div class="h2">Onderweg naar '+d2.n+'</div><div class="stat3"><div><b class="num" id="gMin">'+e2.m+' min</b><span>Resterend</span></div><div><b class="num" id="gKm">'+dist(d2.km)+'</b><span>Afstand</span></div><div><b class="num">'+e2.arr+'</b><span>Aankomst</span></div></div>';
+    h+='<div class="lbl">Volgende stappen</div><div class="dlist scroll" id="gSteps"></div>';
+    h+='<div class="row" style="gap:12px"><button class="key btnS" style="flex:1" id="navMute">'+I('vol')+'</button><button class="btnP" style="flex:3;background:var(--bad);box-shadow:var(--sh-sm)" id="navStop">Stop navigatie</button></div>';
+  }
+  p.innerHTML=h;
+  var s=$('dSearch'); if(s){ s.oninput=function(){ q=s.value; var pos=s.selectionStart; renderNav(); var n=$('dSearch'); n.focus(); n.setSelectionRange(pos,pos); }; }
+  Q('[data-dest]',p).forEach(function(b){ b.onclick=function(){ setRoute(b.dataset.dest); }; });
+  if($('navBack')) $('navBack').onclick=function(){ clearRoute(); };
+  Q('#prefSeg button').forEach(function(b){ b.onclick=function(){ routePref=b.dataset.p; renderNav(); toast('Route: '+b.textContent.toLowerCase()); }; });
+  if($('navStart')) $('navStart').onclick=startGuide;
+  if($('navStop')) $('navStop').onclick=function(){ stopGuide(); toast('Navigatie gestopt'); };
+  if($('navMute')){ var nm=true; $('navMute').onclick=function(){ nm=!nm; this.innerHTML=I(nm?'vol':'mute'); toast('Navigatiestem '+(nm?'aan':'uit')); }; }
+  if(navMode==='guide') renderSteps();
+}
+function pathD(pts){ return 'M'+pts.map(function(p){return p[0]+' '+p[1];}).join(' L'); }
+function setRoute(id){
+  S.route=DEST.filter(function(d){return d.id===id;})[0]; navMode='preview';
+  $('routeLine').setAttribute('d',pathD(S.route.pts)); $('routeHalo').setAttribute('d',pathD(S.route.pts));
+  var e=S.route.pts[S.route.pts.length-1]; $('destPin').setAttribute('transform','translate('+e[0]+','+e[1]+')'); $('destPin').style.display='block';
+  var L=$('routeLine').getTotalLength(); var rl=$('routeLine'); rl.style.transition='none'; rl.style.strokeDasharray=L; rl.style.strokeDashoffset=L;
+  requestAnimationFrame(function(){ rl.style.transition='stroke-dashoffset 1s ease'; rl.style.strokeDashoffset=0; });
+  MV.x=180;MV.y=40;MV.z=.85; applyMap(); renderNav(); go('nav');
+}
+function clearRoute(){ stopGuide(true); S.route=null; navMode='search'; $('routeLine').setAttribute('d',''); $('routeHalo').setAttribute('d',''); $('destPin').style.display='none'; $('me').setAttribute('transform','translate(520,520)'); renderNav(); }
+var gAnim=null, gStep=0;
+function startGuide(){
+  S.guiding=true; navMode='guide'; gStep=0; renderNav(); $('guide').classList.add('show'); $('guidePill').classList.add('show'); updGuide();
+  var path=$('routeLine'), L=path.getTotalLength(), t0=performance.now(), dur=26000, steps=S.route.steps.length;
+  cancelAnimationFrame(gAnim);
+  (function f(now){ var k=Math.min(1,(now-t0)/dur); var pt=path.getPointAtLength(L*k), pt2=path.getPointAtLength(Math.min(L,L*k+2));
+    var ang=Math.atan2(pt2.y-pt.y,pt2.x-pt.x)*180/Math.PI+90; $('me').setAttribute('transform','translate('+pt.x+','+pt.y+') rotate('+ang+')');
+    var st=Math.min(steps-1,Math.floor(k*steps)); if(st!==gStep){ gStep=st; updGuide(); renderSteps(); }
+    var rem=S.route.km*(1-k); if($('gKm')) $('gKm').textContent=dist(rem); if($('gMin')) $('gMin').textContent=Math.max(1,Math.ceil(eta(S.route).m*(1-k)))+' min';
+    if(k<1) gAnim=requestAnimationFrame(f); else { var n=S.route.n; stopGuide(); toast('Je bent aangekomen bij '+n); clearRoute(); }
+  })(t0);
+}
+function updGuide(){ var s=S.route.steps[gStep]; $('gIcon').innerHTML=I(s[0]); $('gDist').textContent=s[2]; $('gText').textContent=s[1];
+  $('guidePill').innerHTML=I(s[0])+s[2]+' · '+S.route.n; }
+function renderSteps(){ var g=$('gSteps'); if(!g) return; var h='';
+  S.route.steps.forEach(function(s,i){ if(i<gStep) return; h+='<div class="ditem"'+(i===gStep?' style="background:var(--well);box-shadow:var(--sh-in)"':'')+'><span class="ic key" style="color:var(--accent)">'+I(s[0])+'</span><span><b>'+s[1]+'</b><span>'+s[2]+'</span></span></div>'; });
+  g.innerHTML=h; }
+function stopGuide(silent){ cancelAnimationFrame(gAnim); S.guiding=false; $('guide').classList.remove('show'); $('guidePill').classList.remove('show'); if(!silent && S.route){ navMode='preview'; $('me').setAttribute('transform','translate(520,520)'); renderNav(); } }
+$('guidePill').onclick=function(){ go('nav'); };
+renderNav();
+// home chips
+$('homeChips').innerHTML=DEST.slice(0,3).map(function(d){ return '<button class="key chip" data-chip="'+d.id+'" style="color:'+d.c+'">'+I(d.ic)+'<span style="color:var(--ink)">'+d.n+'</span></button>'; }).join('');
+Q('[data-chip]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); setRoute(b.dataset.chip); }); });
+
+/* ---------- MEDIA ---------- */
+function renderList(){
+  var pc=phoneConn(); LIB.bt=[[pc?pc.n:'Geen apparaat verbonden',pc?'Verbonden via Bluetooth':'Koppel een apparaat in Instellingen',0,'#64748B','#0F172A']];
+  var h=''; LIB[S.src].forEach(function(t,i){
+    h+='<button class="trk'+(i===S.idx?' cur':'')+'" data-i="'+i+'"><span class="th" style="background:'+grad(t[3],t[4])+'"></span><span style="min-width:0"><b>'+t[0]+'</b><span>'+t[1]+'</span></span><span class="du num">'+(t[2]?mmss(t[2]):(S.src==='radio'?'Live':''))+'</span></button>'; });
+  $('tlist').innerHTML=h;
+  Q('#tlist .trk').forEach(function(b){ b.onclick=function(){ S.idx=+b.dataset.i; S.pos=0; S.playing=true; renderMedia(); renderList(); }; });
+}
+function renderMedia(){
+  var t=cur(), g=grad(t[3],t[4]), liked=!!S.liked[S.src+S.idx];
+  $('npArt').style.background=g; $('hArt').style.background=g; $('dArt').style.background=g;
+  $('npTitle').textContent=t[0]; $('npArtist').textContent=t[1]; $('hTitle').textContent=t[0]; $('hArtist').textContent=t[1]; $('dTitle').textContent=t[0]; $('dArtist').textContent=t[1];
+  var pi=I(S.playing?'pause':'play'); $('mPlay').innerHTML=pi; $('hPlay').innerHTML=pi; $('dPlay').innerHTML=pi;
+  var hi='<svg class="i'+(liked?' f':'')+'" viewBox="0 0 24 24" style="color:'+(liked?'var(--bad)':'currentColor')+'"><path d="'+P.heart+'"/></svg>';
+  $('mLike').innerHTML=hi; $('hLike').innerHTML=hi;
+  $('v-media').classList.toggle('playing',S.playing);
+  var d=t[2]; $('seek').querySelector('i').style.width=(d?Math.min(100,S.pos/d*100):100)+'%';
+  $('tCur').textContent=d?mmss(S.pos):'Live'; $('tDur').textContent=d?'-'+mmss(d-S.pos):'';
+  $('mShuf').classList.toggle('on',S.shuffle); $('mRep').classList.toggle('on',S.rep>0);
+  $('mRep').innerHTML=I('repeat')+(S.rep===2?'<b style="position:absolute;font-size:10px;bottom:9px;right:11px">1</b>':'');
+  Q('#tlist .trk').forEach(function(b,i){ b.classList.toggle('cur',i===S.idx); });
+}
+function nextTrack(dir){ var n=LIB[S.src].length; if(S.shuffle && dir>0){ var r; do{ r=Math.floor(Math.random()*n); }while(n>1&&r===S.idx); S.idx=r; } else S.idx=(S.idx+dir+n)%n; S.pos=0; renderMedia(); }
+setInterval(function(){ if(!S.playing) return; var d=cur()[2]; if(!d) return; S.pos+=1;
+  if(S.pos>=d){ if(S.rep===2) S.pos=0; else if(S.idx===LIB[S.src].length-1 && S.rep===0 && !S.shuffle){ S.playing=false; S.pos=0; } else nextTrack(1); }
+  renderMedia(); },1000);
+$('seek').onclick=function(e){ var r=this.getBoundingClientRect(), d=cur()[2]; if(!d){ toast('Live radio kan je niet doorspoelen'); return; } S.pos=Math.round((e.clientX-r.left)/r.width*d); renderMedia(); };
+$('mShuf').onclick=function(){ S.shuffle=!S.shuffle; renderMedia(); toast('Willekeurig '+(S.shuffle?'aan':'uit')); };
+$('mRep').onclick=function(){ S.rep=(S.rep+1)%3; renderMedia(); toast(['Herhalen uit','Lijst herhalen','Nummer herhalen'][S.rep]); };
+Q('#srcSeg button').forEach(function(b){ b.onclick=function(){ Q('#srcSeg button').forEach(function(x){x.classList.toggle('on',x===b);}); S.src=b.dataset.src; S.idx=0; S.pos=0; renderList(); renderMedia(); }; });
+// equalizer
+var EQN=['Bas','Laag-mid','Midden','Hoog','Treble'], PRE={flat:[0,0,0,0,0],bass:[6,3,0,-1,1],voice:[-2,1,4,3,0],live:[3,0,-1,2,4]};
+$('eqs').innerHTML=EQN.map(function(n,i){ return '<div class="eqc"><b class="num" id="eqv'+i+'">0 dB</b><div class="vr well" data-e="'+i+'"><i></i></div><span>'+n+'</span></div>'; }).join('');
+function renderEq(){ S.eq.forEach(function(v,i){ $('eqv'+i).textContent=(v>0?'+':'')+v+' dB'; Q('[data-e="'+i+'"] i')[0].style.height='calc('+((v+8)/16*100)+'% - 12px)'; }); }
+Q('.vr').forEach(function(el){ var i=+el.dataset.e;
+  function set(e){ var r=el.getBoundingClientRect(); var k=1-(e.clientY-r.top)/r.height; S.eq[i]=Math.round(Math.max(0,Math.min(1,k))*16-8); renderEq(); Q('#eqPre button').forEach(function(b){b.classList.remove('on');}); }
+  el.addEventListener('pointerdown',function(e){ el.setPointerCapture(e.pointerId); set(e); el.onpointermove=set; });
+  el.addEventListener('pointerup',function(){ el.onpointermove=null; }); });
+Q('#eqPre button').forEach(function(b){ b.onclick=function(){ Q('#eqPre button').forEach(function(x){x.classList.toggle('on',x===b);}); S.eq=PRE[b.dataset.p].slice(); renderEq(); }; });
+$('eqBtn').onclick=function(){ $('eqPanel').classList.add('show'); }; $('eqClose').onclick=function(){ $('eqPanel').classList.remove('show'); };
+renderEq(); renderList(); renderMedia();
+// volume
+function renderVol(){ $('volTxt').textContent=S.muted?'–':S.vol; $('volMute').innerHTML=I(S.muted?'mute':'vol'); $('volMute').classList.toggle('on',S.muted); }
+$('volDn').onclick=function(){ S.muted=false; S.vol=Math.max(0,S.vol-1); renderVol(); };
+$('volUp').onclick=function(){ S.muted=false; S.vol=Math.min(30,S.vol+1); renderVol(); };
+$('volMute').onclick=function(){ S.muted=!S.muted; renderVol(); toast(S.muted?'Geluid gedempt':'Geluid aan'); };
+renderVol();
+
+/* ---------- TELEFOON ---------- */
+var phTab='rec';
+function renderPhone(){
+  var h='';
+  if(phTab==='rec') RECENT.forEach(function(r){ var c=CONTACTS[r.i]; h+=pItem(c,(r.miss?'Gemist, ':'')+r.t,r.miss); });
+  else if(phTab==='con') CONTACTS.slice().sort(function(a,b){return a.n.localeCompare(b.n);}).forEach(function(c){ h+=pItem(c,c.num); });
+  else [0,1,2].forEach(function(i){ h+=pItem(CONTACTS[i],'Favoriet'); });
+  $('phItems').innerHTML=h;
+  Q('#phItems [data-call]').forEach(function(b){ b.onclick=function(){ startCall(CONTACTS[+b.dataset.call]); }; });
+}
+function pItem(c,sub,miss){ var i=CONTACTS.indexOf(c); return '<div class="pitem'+(miss?' miss':'')+'"><span class="av" style="background:'+c.c+'">'+c.n[0]+'</span><span><b>'+c.n+'</b><span>'+sub+'</span></span><button class="key cb" data-call="'+i+'" aria-label="Bel '+c.n+'">'+I('phone')+'</button></div>'; }
+Q('#phSeg button').forEach(function(b){ b.onclick=function(){ Q('#phSeg button').forEach(function(x){x.classList.toggle('on',x===b);}); phTab=b.dataset.t; renderPhone(); }; });
+var KL=[['1',''],['2','ABC'],['3','DEF'],['4','GHI'],['5','JKL'],['6','MNO'],['7','PQRS'],['8','TUV'],['9','WXYZ'],['*',''],['0','+'],['#','']];
+$('keys').innerHTML=KL.map(function(k){ return '<button class="key" data-k="'+k[0]+'">'+k[0]+'<small>'+(k[1]||'&nbsp;')+'</small></button>'; }).join('');
+function renderPad(){ var p=S.pad; $('padDisp').textContent=p.replace(/(\d{4})(\d{0,2})(\d{0,2})(\d{0,2})/,function(m,a,b,c,d){return [a,b,c,d].filter(Boolean).join(' ');}); }
+Q('[data-k]').forEach(function(b){ b.onclick=function(){ if(S.pad.length<14){ S.pad+=b.dataset.k; renderPad(); } }; });
+$('padDel').onclick=function(){ S.pad=S.pad.slice(0,-1); renderPad(); };
+$('padClr').onclick=function(){ S.pad=''; renderPad(); };
+$('padCall').onclick=function(){ if(!S.pad){ toast('Voer eerst een nummer in'); return; } startCall({n:$('padDisp').textContent,c:'#7A8794'}); };
+renderPhone();
+$('homeFavs').innerHTML=[0,1,2,3].map(function(i){ var c=CONTACTS[i]; return '<button class="fav" data-fav="'+i+'"><span class="av" style="background:'+c.c+'">'+c.n[0]+'</span>'+c.n+'</button>'; }).join('');
+Q('[data-fav]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); startCall(CONTACTS[+b.dataset.fav]); }); });
+// gesprek
+var callT=null, callS=0, cm=false, cs=false;
+function startCall(c){
+  if(!phoneConn()){ toast(BT.on?'Verbind eerst een telefoon via Bluetooth':'Bluetooth staat uit'); go('settings'); openSet('bluetooth'); return; }
+  S.call=c; callS=0; cm=false; cs=false; $('cMute').classList.remove('on'); $('cSpk').classList.remove('on');
+  $('cAv').textContent=c.n[0]; $('cAv').style.background=c.c; $('callName').textContent=c.n; $('callState').textContent='Bellen…';
+  $('callUI').classList.add('show'); $('scrim').classList.add('show'); S.wasPlaying=S.playing; if(S.playing){ S.playing=false; renderMedia(); }
+  clearInterval(callT); setTimeout(function(){ if(!S.call) return; callT=setInterval(function(){ callS++; $('callState').textContent=mmss(callS); $('callPill').innerHTML=I('phone')+c.n+' · '+mmss(callS); },1000); $('callState').textContent='0:00'; },1800);
+}
+function endCall(){ clearInterval(callT); var n=S.call&&S.call.n; S.call=null; $('callUI').classList.remove('show'); $('callPill').classList.remove('show'); closeAll(); if(S.wasPlaying){ S.playing=true; renderMedia(); } toast('Gesprek beëindigd'+(callS?' ('+mmss(callS)+')':'')); }
+$('cEnd').onclick=endCall;
+$('cMute').onclick=function(){ cm=!cm; this.classList.toggle('on',cm); toast(cm?'Microfoon gedempt':'Microfoon aan'); };
+$('cSpk').onclick=function(){ cs=!cs; this.classList.toggle('on',cs); toast(cs?'Via luidsprekers':'Via hoofdsteun'); };
+$('cPad').onclick=function(){ $('callUI').classList.remove('show'); $('scrim').classList.remove('show'); $('callPill').classList.add('show'); go('phone'); };
+$('callPill').onclick=function(){ $('callUI').classList.add('show'); $('scrim').classList.add('show'); $('callPill').classList.remove('show'); };
+
+/* ---------- KLIMAAT ---------- */
+function carTop(prefix,big){
+  // bovenaanzicht; viewBox 0 0 300 560
+  var s='<svg viewBox="-60 -20 420 600" aria-label="Bovenaanzicht van de auto">';
+  s+='<defs><linearGradient id="'+prefix+'gl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9FB4C8"/><stop offset="1" stop-color="#5E7489"/></linearGradient></defs>';
+  // wielen
+  [[30,110],[270,110],[30,430],[270,430]].forEach(function(w,i){ s+='<rect x="'+(w[0]-18)+'" y="'+(w[1]-40)+'" width="36" height="80" rx="12" fill="#2A2F36"/>'; });
+  if(big){ var tp=[['fl',-50,110,'2,4'],['fr',350,110,'2,4'],['rl',-50,430,'2,6'],['rr',350,430,'2,5']];
+    tp.forEach(function(t){ s+='<text class="tire" data-tire="'+t[0]+'" x="'+t[1]+'" y="'+(t[2]+5)+'" text-anchor="middle" style="cursor:pointer">'+t[3]+'</text><text x="'+t[1]+'" y="'+(t[2]+24)+'" text-anchor="middle" font-size="11" fill="var(--ink-soft)" font-family="ui-rounded,sans-serif">bar</text>'; }); }
+  // frunk / koffer (open = verschuiven)
+  s+='<path class="part" data-part="frunk" d="M60 40 Q150 -6 240 40 L248 110 L52 110 Z" fill="var(--surface)" stroke="var(--ink-soft)" stroke-opacity=".25" stroke-width="2"/>';
+  s+='<path class="part" data-part="trunk" d="M56 450 L244 450 L238 520 Q150 552 62 520 Z" fill="var(--surface)" stroke="var(--ink-soft)" stroke-opacity=".25" stroke-width="2"/>';
+  // carrosserie
+  s+='<path d="M52 110 L248 110 L256 450 L44 450 Z" fill="var(--surface)" stroke="var(--ink-soft)" stroke-opacity=".25" stroke-width="2"/>';
+  // deuren
+  var D=[['fl','M44 160 L52 160 L52 290 L44 290 Z',44,160],['fr','M248 160 L256 160 L256 290 L248 290 Z',256,160],['rl','M44 295 L52 295 L52 420 L44 420 Z',44,295],['rr','M248 295 L256 295 L256 420 L248 420 Z',256,295]];
+  D.forEach(function(d){ s+='<path class="part door" data-part="'+d[0]+'" d="'+d[1]+'" fill="var(--accent)" opacity=".85" style="transform-origin:'+d[2]+'px '+d[3]+'px"/>'; });
+  // ruiten
+  s+='<path d="M72 120 Q150 100 228 120 L218 165 Q150 152 82 165 Z" fill="url(#'+prefix+'gl)" opacity=".85"/>';
+  s+='<path d="M80 410 Q150 422 220 410 L228 440 Q150 452 72 440 Z" fill="url(#'+prefix+'gl)" opacity=".7"/>';
+  // stoelen
+  var SE=[['fl',78,190],['fr',166,190],['rl',78,320],['rr',166,320]];
+  SE.forEach(function(se){ s+='<g class="seatg" data-seat="'+se[0]+'"><rect x="'+se[1]+'" y="'+se[2]+'" width="56" height="78" rx="16" fill="var(--well)" class="seatbg"/><rect x="'+(se[1]+6)+'" y="'+(se[2]+6)+'" width="44" height="44" rx="12" fill="var(--heat)" class="seatheat" opacity="0"/><rect x="'+(se[1]+8)+'" y="'+(se[2]+58)+'" width="40" height="12" rx="6" fill="var(--surface)"/><text x="'+(se[1]+28)+'" y="'+(se[2]+34)+'" text-anchor="middle" font-size="16" font-weight="700" font-family="ui-rounded,sans-serif" fill="var(--ink)" class="seattx"></text></g>'; });
+  // stuur
+  s+='<g class="wheelg" style="cursor:pointer" data-wheel="1"><ellipse cx="106" cy="178" rx="26" ry="9" fill="none" stroke="var(--ink)" stroke-width="5" class="wheelc"/></g>';
+  // laadklep
+  s+='<rect class="part" data-part="port" x="248" y="400" width="14" height="30" rx="4" fill="var(--ink-soft)"/>';
+  return s+'</svg>';
+}
+$('climCar').innerHTML='<div class="lbl">Tik op een stoel voor stoelverwarming, op het stuur voor stuurverwarming</div>'+carTop('c',false);
+$('carStage').innerHTML=carTop('k',true)+'<div class="lbl" style="position:absolute;left:24px;top:22px">Tik op deuren, motorkap, koffer, laadklep of banden</div>';
+$('fanbars').innerHTML=[1,2,3,4,5,6,7].map(function(n){ return '<i data-fan="'+n+'" style="height:'+(10+n*5)+'px"></i>'; }).join('');
+var TG={auto:['auto','Auto'],ac:['snow','A/C'],recirc:['recirc','Recirculatie'],defrost:['defrost','Voorruit'],sync:['sync','Sync']};
+Q('[data-tg]').forEach(function(b){ var t=TG[b.dataset.tg]; b.innerHTML=I(t[0])+t[1]; b.onclick=function(){ var k=b.dataset.tg; S.tg[k]=!S.tg[k];
+  if(k==='sync'&&S.tg.sync){ S.tR=S.tL; } if(k==='defrost'&&S.tg.defrost){ S.fan=7; } if(k==='auto'&&S.tg.auto){ S.fan=3; }
+  renderClimate(); toast(t[1]+' '+(S.tg[k]?'aan':'uit')); }; });
+function setTemp(z,v){ v=Math.round(Math.max(16,Math.min(28,v))*2)/2; if(z==='L'){ S.tL=v; if(S.tg.sync) S.tR=v; } else { S.tR=v; if(S.tg.sync){ S.tg.sync=false; toast('Sync uit'); } } renderClimate(); }
+Q('[data-t][data-d]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); var z=b.dataset.t; setTemp(z,(z==='L'?S.tL:S.tR)+parseFloat(b.dataset.d)); }); });
+['L','R'].forEach(function(z){ var el=$('vs'+z);
+  function set(e){ var r=el.getBoundingClientRect(); var k=1-(e.clientY-r.top)/r.height; setTemp(z,16+Math.max(0,Math.min(1,k))*12); }
+  el.addEventListener('pointerdown',function(e){ el.setPointerCapture(e.pointerId); set(e); el.onpointermove=set; });
+  el.addEventListener('pointerup',function(){ el.onpointermove=null; }); });
+Q('[data-fan]').forEach(function(b){ b.onclick=function(){ S.fan=+b.dataset.fan; S.tg.auto=false; renderClimate(); toast('Ventilator stand '+S.fan); }; });
+$('fanbars').addEventListener('dblclick',function(){ S.fan=0; renderClimate(); toast('Ventilator uit'); });
+Q('#flowSeg button').forEach(function(b){ b.onclick=function(){ S.flow=b.dataset.f; Q('#flowSeg button').forEach(function(x){x.classList.toggle('on',x===b);}); toast('Luchtstroom: '+b.textContent.toLowerCase()); }; });
+function cycleSeat(k){ S.seat[k]=(S.seat[k]+1)%4; renderClimate(); var nm={fl:'bestuurder',fr:'passagier',rl:'achter links',rr:'achter rechts'}[k]; toast('Stoelverwarming '+nm+': '+(S.seat[k]?'niveau '+S.seat[k]:'uit')); }
+document.addEventListener('click',function(e){
+  var s=e.target.closest('[data-seat]'); if(s){ e.stopPropagation(); cycleSeat(s.dataset.seat); return; }
+  var w=e.target.closest('[data-wheel]'); if(w){ S.wheel=!S.wheel; renderClimate(); toast('Stuurverwarming '+(S.wheel?'aan':'uit')); return; }
+  var p=e.target.closest('[data-part]'); if(p && p.closest('#carStage')){ togglePart(p.dataset.part); return; }
+  var t=e.target.closest('[data-tire]'); if(t){ var nm={fl:'linksvoor',fr:'rechtsvoor',rl:'linksachter',rr:'rechtsachter'}[t.dataset.tire]; toast('Band '+nm+': '+t.textContent+' bar, 18 °C, in orde'); }
+});
+function lvHTML(n){ return '<span class="lv">'+[1,2,3].map(function(i){return '<i'+(i<=n?' class="f"':'')+'></i>';}).join('')+'</span>'; }
+function renderClimate(){
+  $('cTL').textContent=fmtT(S.tL); $('cTR').textContent=fmtT(S.tR); $('dTL').textContent=fmtT(S.tL); $('dTR').textContent=fmtT(S.tR); $('hTemp').textContent=fmtT(S.tL);
+  $('vsL').querySelector('i').style.height='calc('+((S.tL-16)/12*100)+'% - 14px + 14px)'; $('vsR').querySelector('i').style.height='calc('+((S.tR-16)/12*100)+'%)';
+  Q('[data-fan]').forEach(function(b){ b.classList.toggle('f',+b.dataset.fan<=S.fan); });
+  Q('[data-tg]').forEach(function(b){ b.classList.toggle('on',!!S.tg[b.dataset.tg]); });
+  Q('.seatg').forEach(function(g){ var n=S.seat[g.dataset.seat]; g.querySelector('.seatheat').setAttribute('opacity',n?0.25+n*0.22:0); g.querySelector('.seattx').textContent=n?n:''; });
+  Q('.wheelc').forEach(function(c){ c.setAttribute('stroke',S.wheel?'var(--heat)':'var(--ink)'); });
+  $('dSeatL').innerHTML=I('seat')+lvHTML(S.seat.fl); $('dSeatR').innerHTML=I('seat')+lvHTML(S.seat.fr);
+  $('dSeatL').classList.toggle('on',S.seat.fl>0); $('dSeatR').classList.toggle('on',S.seat.fr>0);
+  $('hAc').innerHTML=I('snow')+'A/C'; $('hAc').classList.toggle('on',S.tg.ac);
+  $('hSeat').innerHTML=I('seat')+'Stoel '+(S.seat.fl||'uit'); $('hSeat').classList.toggle('on',S.seat.fl>0);
+}
+renderClimate();
+
+/* ---------- AUTO ---------- */
+function togglePart(k){
+  if(S.locked && k!=='port'){ toast('Ontgrendel eerst de auto'); pulseLock(); return; }
+  S.doors[k]=S.doors[k]?0:1; renderCar();
+  var nm={fl:'Deur linksvoor',fr:'Deur rechtsvoor',rl:'Deur linksachter',rr:'Deur rechtsachter',trunk:'Koffer',frunk:'Voorkoffer',port:'Laadklep'}[k];
+  toast(nm+(S.doors[k]?' open':' dicht'));
+}
+function pulseLock(){ var b=$('lockBig'); b.animate([{transform:'translateX(0)'},{transform:'translateX(-8px)'},{transform:'translateX(8px)'},{transform:'translateX(0)'}],{duration:300}); }
+function toggleLock(){
+  var open=Object.keys(S.doors).filter(function(k){return k!=='port'&&S.doors[k];});
+  if(!S.locked && open.length){ open.forEach(function(k){S.doors[k]=0;}); }
+  S.locked=!S.locked; renderCar(); toast(S.locked?'Auto vergrendeld':'Auto ontgrendeld');
+}
+$('lockBig').onclick=toggleLock;
+function renderCar(){
+  $('lockBig').innerHTML=I(S.locked?'lock':'unlock')+(S.locked?'Vergrendeld, tik om te openen':'Ontgrendeld, tik om te sluiten');
+  $('lockBig').classList.toggle('on',!S.locked);
+  $('hLock').innerHTML=I(S.locked?'lock':'unlock')+(S.locked?'Vergrendeld':'Open'); $('hLock').classList.toggle('on',!S.locked);
+  Q('#carStage [data-part]').forEach(function(p){ var k=p.dataset.part, o=S.doors[k];
+    if(k==='fl'||k==='rl') p.style.transform=o?'rotate(52deg)':'none';
+    else if(k==='fr'||k==='rr') p.style.transform=o?'rotate(-52deg)':'none';
+    else if(k==='frunk') p.style.transform=o?'translateY(-34px)':'none';
+    else if(k==='trunk') p.style.transform=o?'translateY(34px)':'none';
+    else if(k==='port') p.setAttribute('fill',o?'var(--ok)':'var(--ink-soft)');
+    if(k!=='port') p.style.fill=o?'var(--heat)':''; });
+  $('portBtn').textContent=S.doors.port?'Laadklep sluiten':'Laadklep openen';
+}
+Q('#modeSeg button').forEach(function(b){ b.onclick=function(){ S.mode=b.dataset.m; Q('#modeSeg button').forEach(function(x){x.classList.toggle('on',x===b);}); $('modeTxt').textContent=MODES[S.mode][1]; applyAccent(); toast('Rijmodus '+b.textContent); }; });
+Q('#lightSeg button').forEach(function(b){ b.onclick=function(){ Q('#lightSeg button').forEach(function(x){x.classList.toggle('on',x===b);}); toast('Verlichting: '+b.textContent.toLowerCase()); }; });
+$('swMirror').onclick=function(){ this.classList.toggle('on'); toast('Spiegels '+(this.classList.contains('on')?'ingeklapt':'uitgeklapt')); };
+$('swChild').onclick=function(){ this.classList.toggle('on'); toast('Kinderslot '+(this.classList.contains('on')?'aan':'uit')); };
+$('swatches').innerHTML=AMB.map(function(c){ return '<button class="swatch'+(c===S.ambient?' on':'')+'" data-amb="'+c+'" style="background:'+c+'" aria-label="Kleur '+c+'"></button>'; }).join('');
+Q('[data-amb]').forEach(function(b){ b.onclick=function(){ S.ambient=b.dataset.amb; Q('[data-amb]').forEach(function(x){x.classList.toggle('on',x===b);}); if(S.mode!=='comfort'){ toast('Sfeerkleur opgeslagen; zichtbaar in Comfort'); } else toast('Sfeerverlichting aangepast'); applyAccent(); }; });
+renderCar();
+
+/* ---------- LADEN ---------- */
+var chT=null;
+function rangeKm(p){ return Math.round(p*4); }
+function renderCharge(){
+  var b=$('batt'); b.querySelector('.fill').style.width='calc('+S.batt+'% - 24px * '+(S.batt/100)+')';
+  b.querySelector('.lim').style.left=S.limit+'%'; b.querySelector('.lim span').textContent='Limiet '+S.limit+' %';
+  b.querySelector('.pct').textContent=Math.floor(S.batt)+' %';
+  $('chRange').textContent=dist(rangeKm(S.batt)); $('hBatt').textContent=Math.floor(S.batt); $('hRange').textContent=dist(rangeKm(S.batt)); $('hBattBar').style.width=S.batt+'%';
+  $('chPow').textContent=S.charging?'11 kW':'0 kW'; $('chAdded').textContent='+'+dist(S.added).replace(' ',' ');
+  var rem=Math.max(0,S.limit-S.batt); $('chEta').textContent=S.charging?(Math.ceil(rem*0.7/60)>0?Math.floor(rem*0.7/60)+' u '+Math.round(rem*0.7%60)+' min':Math.round(rem*0.7)+' min'):'–';
+  $('chBtn').textContent=S.charging?'Stop met laden':'Start met laden'; $('chBtn').style.background=S.charging?'var(--bad)':'';
+  $('v-charge').classList.toggle('charging',S.charging);
+  $('chState').textContent=S.charging?'Aan het laden':(S.doors.port?'Kabel aangesloten':'Laadklep dicht');
+  $('hChargeTxt').textContent=S.charging?'Aan het laden, 11 kW':'Niet aan het laden';
+  $('limTxt').textContent=S.limit+' %'; $('depT').textContent=('0'+S.dep[0]).slice(-2)+':'+('0'+S.dep[1]).slice(-2);
+}
+$('chBtn').onclick=function(){
+  if(!S.charging){ if(!S.doors.port){ S.doors.port=1; renderCar(); toast('Laadklep geopend'); } if(S.batt>=S.limit){ toast('Batterij staat al op de limiet'); renderCharge(); return; } }
+  S.charging=!S.charging; clearInterval(chT);
+  if(S.charging){ chT=setInterval(function(){ S.batt=Math.min(S.limit,S.batt+0.5); S.added+=2; renderCharge(); if(S.batt>=S.limit){ S.charging=false; clearInterval(chT); renderCharge(); toast('Laden voltooid tot '+S.limit+' %'); addNotif('Laden voltooid','Batterij staat op '+S.limit+' %','bolt','#17A866','charge'); } },400); }
+  renderCharge(); toast(S.charging?'Laden gestart':'Laden gestopt');
+};
+$('limR').oninput=function(){ S.limit=+this.value; renderCharge(); };
+$('swSched').onclick=function(){ this.classList.toggle('on'); toast('Planning '+(this.classList.contains('on')?'aan':'uit')); };
+$('swPre').onclick=function(){ this.classList.toggle('on'); toast('Voorverwarmen '+(this.classList.contains('on')?'aan':'uit')); };
+Q('[data-tp]').forEach(function(b){ b.onclick=function(){ var t=b.dataset.tp, m=S.dep[0]*60+S.dep[1]; m+= t==='h+'?60:t==='h-'?-60:t==='m+'?15:-15; m=(m+1440)%1440; S.dep=[Math.floor(m/60),m%60]; renderCharge(); }; });
+$('portBtn').onclick=function(){ if(S.charging){ toast('Stop eerst met laden'); return; } togglePart('port'); renderCharge(); };
+renderCharge();
+
+/* ---------- INSTELLINGEN ---------- */
+Q('#setNav button').forEach(function(b){ b.onclick=function(){ Q('#setNav button').forEach(function(x){x.classList.toggle('on',x===b);}); Q('.sp-sec').forEach(function(s){ s.classList.toggle('on',s.id==='s-'+b.dataset.s); }); }; });
+$('brR').oninput=function(){ $('brTxt').textContent=this.value+' %'; $('dim').style.opacity=(100-this.value)/100*0.6; };
+function setTheme(t){ var dark=t==='dark'||(t==='auto'&&(new Date().getHours()>=19||new Date().getHours()<7)); scr.classList.toggle('dark',dark); }
+Q('#themeSeg button').forEach(function(b){ b.onclick=function(){ Q('#themeSeg button').forEach(function(x){x.classList.toggle('on',x===b);}); setTheme(b.dataset.th); toast('Weergave: '+b.textContent.toLowerCase()); }; });
+Q('#unitSeg button').forEach(function(b){ b.onclick=function(){ Q('#unitSeg button').forEach(function(x){x.classList.toggle('on',x===b);}); S.units=b.dataset.u; renderCharge(); renderNav(); toast('Eenheden: '+b.textContent.toLowerCase()); }; });
+Q('[data-sw]').forEach(function(b){ b.onclick=function(){ b.classList.toggle('on'); var t=b.closest('.trow').querySelector('b').textContent; toast(t+' '+(b.classList.contains('on')?'aan':'uit')); }; });
+$('updBtn').onclick=function(){ var btn=this; if(btn.dataset.state==='done'){ toast('Je software is al up-to-date'); return; }
+  btn.disabled=true; btn.textContent='Zoeken…'; $('updTxt').textContent='Zoeken naar updates…';
+  setTimeout(function(){ $('updTxt').textContent='Update 2026.46.2 gevonden: verbeterde routeplanning. Downloaden…'; $('updBar').style.display='block'; var p=0;
+    var it=setInterval(function(){ p+=7; $('updBar').querySelector('i').style.width=Math.min(100,p)+'%'; if(p>=100){ clearInterval(it); btn.disabled=false; btn.textContent='Up-to-date'; btn.dataset.state='done'; $('swVer').textContent='2026.46.2'; $('updTxt').textContent='Installatie klaar. De nieuwe versie is actief.'; toast('Software bijgewerkt'); } },150); },1100); };
+function renderProfiles(){
+  $('profList').innerHTML=PROFILES.map(function(p,i){ return '<button class="pitem" data-prof="'+i+'" style="'+(i===S.profile?'background:var(--well);box-shadow:var(--sh-in)':'')+'"><span class="av" style="background:'+p.c+'">'+p.n[0]+'</span><span><b>'+p.n+'</b><span>Klimaat '+fmtT(p.t)+(i===S.profile?', actief':'')+'</span></span>'+(i===S.profile?'<span style="margin-left:auto;color:var(--accent)">'+I('check')+'</span>':'')+'</button>'; }).join('');
+  $('profMenu').innerHTML='<div class="lbl" style="padding:4px 8px">Wissel van profiel</div>'+PROFILES.map(function(p,i){ return '<button data-prof="'+i+'"><span class="av" style="background:'+p.c+'">'+p.n[0]+'</span>'+p.n+(i===S.profile?'<span style="margin-left:auto;color:var(--accent)">'+I('check')+'</span>':'')+'</button>'; }).join('')+'<button data-go="settings" id="pmSet">'+I('gear')+'Profielen beheren</button>';
+  Q('[data-prof]').forEach(function(b){ b.onclick=function(){ setProfile(+b.dataset.prof); }; });
+  $('pmSet').addEventListener('click',function(){ closeAll(); openSet('profiles'); });
+}
+function setProfile(i){ S.profile=i; var p=PROFILES[i]; $('profAv').textContent=p.n[0]; $('profAv').style.background=p.c; $('profName').textContent=p.n;
+  S.tL=p.t; if(S.tg.sync) S.tR=p.t; renderClimate(); greet(); renderProfiles(); closeAll(); toast('Welkom, '+p.n+'. Stoel en klimaat aangepast'); }
+renderProfiles();
+function greet(){ var h=new Date().getHours(); $('greet').textContent=(h<12?'Goeiemorgen':h<18?'Goeiemiddag':'Goeienavond')+', '+PROFILES[S.profile].n; }
+greet();
+
+/* ---------- BLUETOOTH ---------- */
+var BT={on:true,scanning:false,found:[],pairing:null,code:'',busy:null,
+  paired:[{n:'Telefoon van Sam',t:'phone',conn:true},{n:'Telefoon van Noor',t:'phone',conn:false},{n:'Tablet achterbank',t:'tablet',conn:false}],
+  nearby:[{n:'Telefoon van Jonas',t:'phone'},{n:'Smartwatch van Elise',t:'watch'},{n:'Koptelefoon van Lotte',t:'audio'},{n:'Laptop van Ruben',t:'laptop'}]};
+P.tablet='M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2';
+P.watch='M9 7h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2zM9 7l1-5h4l1 5M9 17l1 5h4l1-5';
+P.audio='M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z';
+P.laptop='M4 5h16v11H4zM2 19h20';
+P.mobile='M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM12 18h.01';
+var TIC={phone:'mobile',tablet:'tablet',watch:'watch',audio:'audio',laptop:'laptop'};
+var TDESC={phone:'oproepen en media',tablet:'media',watch:'meldingen',audio:'media',laptop:'media'};
+function phoneConn(){ if(!BT) return {n:'Telefoon van Sam',t:'phone'}; if(!BT.on) return null; return BT.paired.filter(function(d){return d.t==='phone'&&d.conn;})[0]||null; }
+function openSet(k){ var b=document.querySelector('#setNav [data-s="'+k+'"]'); if(b) b.click(); }
+function btDevRow(d,i,kind){
+  var st, acts='';
+  if(kind==='paired'){
+    st = BT.busy===d ? '<span class="spin"></span>Bezig…' : (d.conn ? 'Verbonden: '+TDESC[d.t] : 'Niet verbonden');
+    acts = '<button class="key" data-btc="'+i+'">'+(d.conn?'Verbreken':'Verbinden')+'</button><button class="key fx" data-btf="'+i+'" aria-label="'+d.n+' vergeten">'+I('x')+'</button>';
+  } else { st='Beschikbaar om te koppelen'; acts='<button class="key" data-btp="'+i+'">Koppelen</button>'; }
+  return '<div class="bt-dev'+(d.conn?' conn':'')+'"><span class="ic key">'+I(TIC[d.t])+'</span><span style="min-width:0"><b>'+d.n+'</b><span class="st">'+st+'</span></span><span class="acts">'+acts+'</span></div>';
+}
+function renderBT(){
+  $('swBt').classList.toggle('on',BT.on);
+  $('btVis').textContent = BT.on ? 'Zichtbaar als "Mijn auto"' : 'Uit';
+  var h='';
+  if(!BT.on){ h='<div class="bt-off-msg">Bluetooth staat uit. Zet het aan om je telefoon te verbinden.</div>'; }
+  else {
+    h+='<div class="bt-hd"><b style="font-size:17px">Mijn apparaten</b><span class="lbl">'+BT.paired.length+' gekoppeld</span></div>';
+    h+= BT.paired.length ? BT.paired.map(function(d,i){ return btDevRow(d,i,'paired'); }).join('') : '<div class="bt-off-msg">Nog geen gekoppelde apparaten</div>';
+    if(BT.pairing){
+      h+='<div class="paircard"><b style="font-size:17px">Koppelen met '+BT.pairing.n+'</b><span class="lbl">Controleer of deze code ook op het apparaat staat.</span><div class="code num">'+BT.code+'</div>'+
+         '<div class="row" style="gap:12px"><button class="key btnS" style="flex:1" id="btCancel">Annuleren</button><button class="btnP" style="flex:2" id="btConfirm">Code klopt, koppelen</button></div></div>';
+    }
+    h+='<div class="bt-hd"><b style="font-size:17px">Andere apparaten</b>'+(BT.scanning?'<span class="lbl"><span class="spin"></span>Zoeken…</span>':'<button class="key" id="btScan" style="height:44px;padding:0 18px;font-weight:700;font-size:14px">'+(BT.found.length?'Opnieuw zoeken':'Nieuw apparaat koppelen')+'</button>')+'</div>';
+    h+= BT.found.map(function(d,i){ return btDevRow(d,i,'found'); }).join('');
+    if(!BT.scanning && !BT.found.length) h+='<div class="lbl" style="padding:4px 2px">Zet bluetooth aan op je telefoon en tik op "Nieuw apparaat koppelen".</div>';
+  }
+  $('btBody').innerHTML=h;
+  Q('[data-btc]').forEach(function(b){ b.onclick=function(){ btToggle(BT.paired[+b.dataset.btc]); }; });
+  Q('[data-btf]').forEach(function(b){ b.onclick=function(){ var d=BT.paired.splice(+b.dataset.btf,1)[0]; BT.nearby.push({n:d.n,t:d.t}); btChanged(); toast(d.n+' vergeten'); }; });
+  Q('[data-btp]').forEach(function(b){ b.onclick=function(){ BT.pairing=BT.found[+b.dataset.btp]; BT.code=String(100000+Math.floor(Math.random()*899999)).replace(/(\d{3})(\d{3})/,'$1 $2'); renderBT(); }; });
+  if($('btScan')) $('btScan').onclick=btScan;
+  if($('btCancel')) $('btCancel').onclick=function(){ BT.pairing=null; renderBT(); toast('Koppelen geannuleerd'); };
+  var pcd=document.querySelector('.paircard'); if(pcd) pcd.scrollIntoView({block:'nearest',behavior:'smooth'});
+  if($('btConfirm')) $('btConfirm').onclick=function(){ var d=BT.pairing; BT.pairing=null;
+    BT.found=BT.found.filter(function(x){return x!==d;}); BT.nearby=BT.nearby.filter(function(x){return x.n!==d.n;});
+    var nd={n:d.n,t:d.t,conn:false}; BT.paired.push(nd); toast('Gekoppeld met '+d.n); btToggle(nd); };
+}
+function btScan(){ BT.scanning=true; BT.found=[]; renderBT();
+  setTimeout(function(){ BT.scanning=false; BT.found=BT.nearby.slice(); renderBT(); if(!BT.found.length) toast('Geen nieuwe apparaten gevonden'); },1800); }
+function btToggle(d){
+  if(BT.busy) return;
+  if(d.conn){ d.conn=false; btChanged(); toast(d.n+' losgekoppeld'+(d.t==='phone'&&S.call?'; gesprek beëindigd':'')); if(d.t==='phone'&&S.call) endCall(); return; }
+  BT.busy=d; renderBT();
+  setTimeout(function(){
+    if(d.t==='phone') BT.paired.forEach(function(x){ if(x.t==='phone'&&x!==d&&x.conn){ x.conn=false; } });
+    d.conn=true; BT.busy=null; btChanged(); toast('Verbonden met '+d.n);
+  },1300);
+}
+function btChanged(){
+  renderBT();
+  var pc=phoneConn(), st=$('btStat'); st.classList.toggle('on',!!pc); st.classList.toggle('off',!BT.on);
+  $('phConn').innerHTML=I('bt')+(pc?'Verbonden met <b>'+pc.n+'</b>':(BT.on?'Geen telefoon verbonden, tik om te verbinden':'Bluetooth staat uit, tik om aan te zetten'));
+  if(S.src==='bt'){ S.idx=0; } renderList(); renderMedia();
+}
+$('swBt').onclick=function(){ BT.on=!BT.on; if(!BT.on){ BT.scanning=false; BT.found=[]; BT.pairing=null; if(S.call) endCall(); } btChanged(); toast('Bluetooth '+(BT.on?'aan':'uit')); };
+$('btStat').onclick=function(){ go('settings'); openSet('bluetooth'); };
+$('phConn').onclick=function(){ go('settings'); openSet('bluetooth'); };
+btChanged();
+
+/* ---------- MELDINGEN / PROFIEL / SPRAAK ---------- */
+var NOTIFS=[{t:'Gemiste oproep',s:'Noor belde om 13:05',ic:'phone',c:'#E5383B',a:'callNoor'},
+ {t:'Software-update beschikbaar',s:'Versie 2026.46.2 met betere routeplanning',ic:'chip',c:'#2F5BFF',a:'update'},
+ {t:'Bandenspanning rechtsvoor',s:'2,4 bar, iets lager dan aanbevolen',ic:'car',c:'#F29E38',a:'car'}];
+function addNotif(t,s,ic,c,a){ NOTIFS.unshift({t:t,s:s,ic:ic,c:c,a:a}); renderNotifs(); }
+function renderNotifs(){
+  $('bellN').textContent=NOTIFS.length; $('bellN').style.display=NOTIFS.length?'grid':'none';
+  $('nlist').innerHTML=NOTIFS.length?NOTIFS.map(function(n,i){ return '<button class="nitem" data-n="'+i+'"><span class="ic" style="background:'+n.c+'">'+I(n.ic)+'</span><span><b>'+n.t+'</b><span>'+n.s+'</span></span></button>'; }).join(''):'<div class="lbl" style="padding:20px;text-align:center">Geen nieuwe meldingen</div>';
+  Q('[data-n]').forEach(function(b){ b.onclick=function(){ var n=NOTIFS.splice(+b.dataset.n,1)[0]; renderNotifs(); closeAll();
+    if(n.a==='callNoor') startCall(CONTACTS[0]); else if(n.a==='update'){ go('settings'); openSet('system'); } else if(n.a==='car'){ go('car'); toast('Tik op een band voor details'); } else go(n.a); }; });
+}
+renderNotifs();
+function closeAll(){ $('drawer').classList.remove('show'); $('profMenu').classList.remove('show'); $('voice').classList.remove('show'); if(!$('callUI').classList.contains('show')) $('scrim').classList.remove('show'); }
+$('bell').onclick=function(){ $('drawer').classList.add('show'); $('scrim').classList.add('show'); };
+$('drClose').onclick=closeAll;
+$('nClear').onclick=function(){ NOTIFS=[]; renderNotifs(); toast('Meldingen gewist'); };
+$('profBtn').onclick=function(e){ e.stopPropagation(); var m=$('profMenu'); var o=!m.classList.contains('show'); closeAll(); if(o){ m.classList.add('show'); $('scrim').classList.add('show'); } };
+$('scrim').onclick=function(){ if($('callUI').classList.contains('show')) return; closeAll(); };
+var VC=[['Navigeer naar huis',function(){ setRoute('home'); return 'Route naar Thuis berekend.'; }],
+ ['Zet de temperatuur op 22 graden',function(){ setTemp('L',22); return 'Temperatuur staat op 22 graden.'; }],
+ ['Speel iets rustigs',function(){ $('srcSeg').querySelector('[data-src=stream]').click(); S.idx=6; S.pos=0; S.playing=true; renderMedia(); return 'Ik speel Stille stad van Mira Lune.'; }],
+ ['Bel Mama',function(){ setTimeout(function(){ startCall(CONTACTS[1]); },700); return 'Ik bel Mama.'; }],
+ ['Zoek een snellader',function(){ if(!layers.charge) $('lCharge').click(); setRoute('fast'); return 'Dichtstbijzijnde snellader op 6,8 km.'; }],
+ ['Verbind mijn telefoon',function(){ go('settings'); openSet('bluetooth'); if(!BT.on){ BT.on=true; btChanged(); } var d=BT.paired.filter(function(x){return x.t==='phone';})[0]; if(d&&!d.conn){ btToggle(d); return 'Ik verbind '+d.n+'.'; } return d?d.n+' is al verbonden.':'Ik zoek naar apparaten.'; }],
+ ['Verwarm mijn stoel',function(){ S.seat.fl=3; renderClimate(); return 'Stoelverwarming staat op het hoogste niveau.'; }]];
+$('vchips').innerHTML=VC.map(function(v,i){ return '<button class="key" data-vc="'+i+'">“'+v[0]+'”</button>'; }).join('');
+Q('[data-vc]').forEach(function(b){ b.onclick=function(){ var v=VC[+b.dataset.vc]; $('vText').textContent='“'+v[0]+'”';
+  setTimeout(function(){ $('vText').textContent=v[1](); setTimeout(closeAll,1200); },600); }; });
+$('micBtn').onclick=function(){ closeAll(); $('vText').textContent='Waarmee kan ik helpen?'; $('voice').classList.add('show'); $('scrim').classList.add('show'); };
+$('vClose').onclick=closeAll;
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeAll(); });
+
+/* ---------- klok ---------- */
+function clock(){ var d=new Date(); $('clock').textContent=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+clock(); setInterval(clock,10000);
+applyAccent();
+})();
+</script>
+</body>
+</html>
