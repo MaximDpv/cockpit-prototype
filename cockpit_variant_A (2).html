@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EX30 cockpit-concept · overnameverzoek</title>
+<style>
+/* ===== Tokens ===================================================== */
+:root{
+  --mist:#E6ECEE;        /* kaart: land */
+  --fjord:#B9CED8;       /* kaart: water */
+  --pine:#CBD8C9;        /* kaart: groen */
+  --road:#FFFFFF;
+  --ink:#1C2328;         /* tekst */
+  --ink-soft:#5B676E;
+  --moss:#B7B36A;        /* accent, ontleend aan de EX30-kleur Moss Yellow */
+  --moss-deep:#7F7C3E;
+  --alert:#E8492F;       /* alleen variant B */
+  --font:-apple-system,"SF Pro Display","SF Pro Text","Segoe UI Variable Display","Segoe UI",Inter,Roboto,system-ui,sans-serif;
+  --glass-blur:blur(22px) saturate(185%);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:transparent;font-family:var(--font);color:var(--ink);-webkit-font-smoothing:antialiased}
+
+/* Schaalbaar canvas: ontworpen op 900×1200 (staand middenscherm), schaalt mee met de container */
+#fit{width:100%;max-width:900px;margin:0 auto;aspect-ratio:3/4;position:relative;overflow:hidden;border-radius:28px;
+  box-shadow:0 0 0 10px #121619,0 0 0 11px #2a3136,0 30px 60px rgba(0,0,0,.35)}
+#screen{width:900px;height:1200px;position:absolute;top:0;left:0;transform-origin:0 0;overflow:hidden;background:var(--mist);user-select:none;-webkit-user-select:none}
+
+/* ===== Kaart ======================================================= */
+#map{position:absolute;inset:-300px -200px;will-change:transform}
+#map svg{width:100%;height:100%;display:block}
+.drive #map{animation:drive 60s linear infinite}
+@keyframes drive{from{transform:translateY(0)}to{transform:translateY(300px)}}
+
+/* ===== Liquid glass ================================================ */
+.glass{position:absolute;border-radius:34px;
+  background:linear-gradient(160deg,rgba(255,255,255,.52) 0%,rgba(255,255,255,.22) 45%,rgba(255,255,255,.30) 100%);
+  -webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(255,255,255,.35),
+             inset 0 0 0 1px rgba(255,255,255,.38),0 18px 40px -12px rgba(28,35,40,.28),0 2px 6px rgba(28,35,40,.08);
+  overflow:hidden}
+/* spiegelende glans bovenaan, typisch voor liquid glass */
+.glass::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(120% 60% at 20% -10%,rgba(255,255,255,.75),rgba(255,255,255,0) 55%),
+             radial-gradient(80% 40% at 100% 110%,rgba(255,255,255,.35),rgba(255,255,255,0) 60%);
+  mix-blend-mode:soft-light}
+.glass > *{position:relative}
+
+/* ===== Rijbalk (boven) ============================================= */
+#drivebar{top:24px;left:24px;right:24px;height:170px;display:grid;grid-template-columns:200px 1fr 200px;align-items:center;padding:0 34px}
+.speed{display:flex;align-items:baseline;gap:8px}
+.speed b{font-size:96px;font-weight:600;letter-spacing:-.045em;line-height:1;font-variant-numeric:tabular-nums}
+.speed span{font-size:20px;color:var(--ink-soft);font-weight:500}
+.assist{justify-self:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.lanes{position:relative;width:150px;height:78px}
+.lanes svg{width:100%;height:100%}
+.assist p{font-size:18px;font-weight:600;color:var(--moss-deep);display:flex;align-items:center;gap:8px}
+.assist p i{width:9px;height:9px;border-radius:50%;background:var(--moss);box-shadow:0 0 0 4px rgba(183,179,106,.25)}
+.off .lanes path[stroke]{stroke:#9aa3a8} .off .assist p{color:var(--ink-soft)} .off .assist p i{background:#9aa3a8;box-shadow:none}
+.right{justify-self:end;display:flex;align-items:center;gap:22px}
+.limit{width:70px;height:70px;border-radius:50%;background:#fff;border:7px solid #D7332A;display:grid;place-items:center;font-weight:700;font-size:24px;letter-spacing:-.03em}
+.gear{display:flex;flex-direction:column;align-items:center;font-size:15px;color:var(--ink-soft);gap:2px}
+.gear b{font-size:34px;color:var(--ink);font-weight:600}
+
+/* ===== Navigatie =================================================== */
+#nav{top:214px;left:24px;width:430px;height:132px;padding:24px 28px;display:flex;gap:22px;align-items:center}
+#nav .turn{width:76px;height:76px;border-radius:24px;background:var(--ink);display:grid;place-items:center;flex:none}
+#nav h2{font-size:38px;font-weight:600;letter-spacing:-.03em;line-height:1}
+#nav p{font-size:19px;color:var(--ink-soft);margin-top:8px}
+
+#eta{top:214px;right:24px;width:230px;height:132px;padding:24px 28px;display:flex;flex-direction:column;justify-content:center}
+#eta b{font-size:38px;font-weight:600;letter-spacing:-.03em;line-height:1}
+#eta p{font-size:19px;color:var(--ink-soft);margin-top:8px}
+
+/* ===== Media + batterij ============================================ */
+#media{left:24px;bottom:186px;width:520px;height:138px;padding:22px;display:flex;align-items:center;gap:22px}
+.cover{width:94px;height:94px;border-radius:22px;flex:none;background:conic-gradient(from 210deg,#2f4d5c,#8fb2bf,#d7d3a0,#2f4d5c)}
+#media h3{font-size:24px;font-weight:600;letter-spacing:-.02em}
+#media p{font-size:18px;color:var(--ink-soft);margin-top:4px}
+.bar{height:5px;border-radius:3px;background:rgba(28,35,40,.14);margin-top:14px;width:250px;overflow:hidden}
+.bar i{display:block;height:100%;width:38%;background:var(--ink);border-radius:3px;transition:width .9s linear}
+.ctrl{margin-left:auto;display:flex;gap:6px}
+.ctrl button{width:56px;height:56px;border-radius:50%;border:0;background:transparent;display:grid;place-items:center;cursor:pointer}
+
+#battery{right:24px;bottom:186px;width:288px;height:138px;padding:24px 28px}
+#battery b{font-size:38px;font-weight:600;letter-spacing:-.03em}
+#battery p{font-size:19px;color:var(--ink-soft);margin-top:6px}
+.cell{margin-top:14px;height:12px;border-radius:7px;background:rgba(28,35,40,.12);overflow:hidden}
+.cell i{display:block;height:100%;width:68%;border-radius:7px;background:linear-gradient(90deg,var(--moss-deep),var(--moss))}
+
+/* ===== Klimaatbalk ================================================= */
+#climate{left:0;right:0;bottom:0;height:162px;border-radius:34px 34px 0 0;display:grid;grid-template-columns:232px 1fr 232px;align-items:center;padding:0 26px}
+.temp{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.tval{display:flex;flex-direction:column;align-items:center;min-width:104px}
+.tbtn{width:54px;height:54px;border-radius:50%;border:0;cursor:pointer;background:rgba(255,255,255,.38);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 0 0 1px rgba(255,255,255,.4);display:grid;place-items:center}
+.tbtn svg{width:22px;height:22px}
+.temp b{font-size:42px;font-weight:500;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.temp span{font-size:16px;color:var(--ink-soft)}
+.quick{display:flex;justify-content:center;gap:12px}
+.quick button{position:relative;width:86px;height:86px;border-radius:28px;border:0;cursor:pointer;background:rgba(255,255,255,.35);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 0 0 1px rgba(255,255,255,.4);display:grid;place-items:center}
+.quick button.on{background:rgba(183,179,106,.45)}
+.quick svg{width:36px;height:36px;transition:transform .2s}
+.qb .lv{position:absolute;bottom:11px;left:50%;transform:translateX(-50%);display:flex;gap:4px}
+.qb .lv i{width:6px;height:6px;border-radius:50%;background:rgba(28,35,40,.18);transition:background .2s}
+.qb .lv i.f{background:var(--ink)}
+.qb[data-levels] svg{transform:translateY(-6px)}
+/* drukfeedback */
+button,.tap{transition:transform .14s cubic-bezier(.3,.7,.4,1.4),background .2s,box-shadow .2s}
+button:active{transform:scale(.92)}
+.tap{cursor:pointer}.tap:active{transform:scale(.97)}
+button:focus-visible,.tap:focus-visible{outline:3px solid var(--moss);outline-offset:3px}
+.ctrl button:active{background:rgba(28,35,40,.08)}
+#chip{left:50%;bottom:346px;transform:translate(-50%,14px);opacity:0;padding:16px 26px;border-radius:26px;font-size:20px;font-weight:600;white-space:nowrap;pointer-events:none;transition:opacity .25s,transform .3s cubic-bezier(.2,.9,.25,1.15);z-index:15}
+#chip.show{opacity:1;transform:translate(-50%,0)}
+
+/* ===== Overnameverzoek ============================================ */
+#takeover{top:24px;left:24px;right:24px;height:322px;padding:34px 38px;display:flex;flex-direction:column;justify-content:space-between;
+  opacity:0;transform:translateY(-24px) scale(.98);pointer-events:none;transition:opacity .28s ease,transform .38s cubic-bezier(.2,.9,.25,1.15);z-index:20}
+#takeover.show{opacity:1;transform:none;pointer-events:auto}
+#takeover{background:linear-gradient(160deg,rgba(255,255,255,.80),rgba(255,255,255,.62));-webkit-backdrop-filter:blur(40px) saturate(180%);backdrop-filter:blur(40px) saturate(180%)}
+#drivebar,#nav,#eta{transition:opacity .25s}
+.alerting #drivebar,.alerting #nav,.alerting #eta{opacity:0}
+#takeover h2{font-size:40px;font-weight:600;letter-spacing:-.03em;line-height:1.1;max-width:28ch}
+#takeover p{font-size:22px;color:var(--ink-soft);margin-top:10px}
+.to-row{display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+#takeBtn{height:88px;width:300px;border-radius:44px;border:0;cursor:pointer;font:600 28px/1 var(--font);letter-spacing:-.01em;color:#fff;background:var(--ink);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 10px 24px -8px rgba(0,0,0,.45)}
+#takeBtn:focus-visible{outline:4px solid var(--moss);outline-offset:4px}
+.to-icon{display:none}
+
+/* Variant B: zelfde tekst, plaats en knop; extra kleur, icoon en puls */
+.vB #takeover{background:linear-gradient(160deg,rgba(255,120,92,.80),rgba(232,73,47,.62));color:#fff;
+  box-shadow:inset 0 1.5px 0 rgba(255,220,210,.95),inset 0 0 0 1px rgba(255,200,190,.5),0 24px 60px -10px rgba(232,73,47,.6)}
+.vB #takeover p{color:rgba(255,255,255,.88)}
+.vB #takeBtn{background:#fff;color:var(--alert)}
+.vB .to-icon{display:block;width:96px;height:96px;flex:none}
+.vB .to-head{display:flex;gap:28px;align-items:flex-start}
+.vB #takeover.show{animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:inset 0 1.5px 0 rgba(255,220,210,.95),inset 0 0 0 1px rgba(255,200,190,.5),0 0 0 0 rgba(232,73,47,.55),0 24px 60px -10px rgba(232,73,47,.6)}
+  50%{box-shadow:inset 0 1.5px 0 rgba(255,220,210,.95),inset 0 0 0 1px rgba(255,200,190,.5),0 0 0 18px rgba(232,73,47,0),0 24px 60px -10px rgba(232,73,47,.6)}}
+#edge{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;z-index:19;
+  box-shadow:inset 0 0 0 6px rgba(232,73,47,.9),inset 0 0 80px rgba(232,73,47,.45)}
+.vB #edge.show{opacity:1;animation:edge 1.1s ease-in-out infinite}
+@keyframes edge{50%{opacity:.45}}
+
+/* ===== Start / klaar ============================================== */
+#overlay{position:absolute;inset:0;z-index:30;display:grid;place-items:center;background:rgba(230,236,238,.35);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:opacity .3s}
+#overlay.hide{opacity:0;pointer-events:none}
+#overlay .glass{position:relative;padding:44px 52px;text-align:center;max-width:620px}
+#overlay h2{font-size:34px;font-weight:600;letter-spacing:-.03em}
+#overlay p{font-size:21px;color:var(--ink-soft);margin:14px 0 30px;line-height:1.4}
+#startBtn{height:80px;padding:0 54px;border-radius:40px;border:0;background:var(--ink);color:#fff;font:600 26px/1 var(--font);cursor:pointer}
+#startBtn:focus-visible{outline:4px solid var(--moss);outline-offset:4px}
+
+#toast{top:420px;left:50%;transform:translate(-50%,-30px);opacity:0;padding:22px 34px;font-size:24px;font-weight:600;transition:.35s;z-index:21;border-radius:30px;white-space:nowrap}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion:reduce){
+  .drive #map{animation:none}
+  .vB #takeover.show,.vB #edge.show{animation:none}
+  #takeover{transition:opacity .2s}
+}
+</style>
+</head>
+<body>
+<div id="fit">
+ <div id="screen" class="vA">
+
+  <!-- Kaart -->
+  <div id="map" aria-hidden="true">
+   <svg viewBox="0 0 1300 1800" preserveAspectRatio="xMidYMid slice">
+    <rect width="1300" height="1800" fill="#E6ECEE"/>
+    <path d="M0 210 C180 170 260 290 420 250 S700 120 880 190 1200 160 1300 120 V0 H0Z" fill="#B9CED8"/>
+    <path d="M1300 980 C1150 1010 1080 900 960 930 S800 1080 840 1180 1050 1290 1300 1250Z" fill="#B9CED8"/>
+    <path d="M60 640 C160 590 300 610 330 700 S220 860 120 830 0 760 60 640Z" fill="#CBD8C9"/>
+    <path d="M880 470 C980 430 1120 460 1130 560 S1010 690 930 650 820 520 880 470Z" fill="#CBD8C9"/>
+    <path d="M140 1320 C260 1270 420 1300 430 1410 S300 1560 190 1520 60 1400 140 1320Z" fill="#CBD8C9"/>
+    <path d="M1000 1500 C1100 1460 1250 1480 1260 1580 S1150 1720 1060 1690 930 1570 1000 1500Z" fill="#CBD8C9"/>
+    <g stroke="#FFFFFF" stroke-linecap="round" fill="none">
+     <path d="M0 520 H1300" stroke-width="10"/><path d="M0 1080 C300 1060 500 1120 1300 1060" stroke-width="10"/>
+     <path d="M0 1460 H1300" stroke-width="8"/><path d="M260 0 V1800" stroke-width="8"/>
+     <path d="M1040 0 C1000 400 1080 800 1020 1800" stroke-width="8"/>
+     <path d="M0 820 C200 840 400 780 640 800" stroke-width="6"/><path d="M640 1300 C800 1320 1000 1260 1300 1300" stroke-width="6"/>
+     <path d="M420 0 V520 M880 520 V1080 M420 1080 V1800 M120 1080 V1460 M1180 1460 V1800" stroke-width="5"/>
+    </g>
+    <path d="M650 0 C640 300 700 520 660 800 S600 1300 650 1800" stroke="#FFFFFF" stroke-width="34" fill="none" stroke-linecap="round"/>
+    <path d="M650 0 C640 300 700 520 660 800 S600 1300 650 1800" stroke="#B7B36A" stroke-width="16" fill="none" stroke-linecap="round"/>
+    <g font-family="-apple-system,Segoe UI,sans-serif" fill="#8a979e" font-size="22" font-weight="500">
+     <text x="300" y="500">Sint-Denijs-Westrem</text><text x="900" y="1040">Zwijnaarde</text><text x="140" y="1440">De Pinte</text><text x="690" y="760" fill="#7F7C3E" font-weight="600">E17</text>
+    </g>
+   </svg>
+  </div>
+  <!-- auto-marker staat vast; de kaart beweegt -->
+  <svg style="position:absolute;left:418px;top:690px;width:64px;height:64px;z-index:2" viewBox="0 0 64 64" aria-hidden="true">
+   <circle cx="32" cy="32" r="30" fill="rgba(28,35,40,.12)"/><circle cx="32" cy="32" r="21" fill="#fff"/>
+   <path d="M32 17 L43 44 L32 38 L21 44Z" fill="#1C2328"/>
+  </svg>
+
+  <!-- Rijbalk -->
+  <section id="drivebar" class="glass" aria-label="Rijinformatie">
+   <div class="speed"><b id="spd">98</b><span>km/u</span></div>
+   <div class="assist">
+    <div class="lanes"><svg viewBox="0 0 150 78" aria-hidden="true">
+      <path d="M30 76 L58 4" stroke="#B7B36A" stroke-width="5" stroke-linecap="round"/>
+      <path d="M120 76 L92 4" stroke="#B7B36A" stroke-width="5" stroke-linecap="round"/>
+      <path d="M62 70 h26 l-4-22 h-18z" fill="#1C2328"/></svg></div>
+    <p><i></i><span id="paLabel">Pilot Assist actief</span></p>
+   </div>
+   <div class="right"><div class="limit">120</div><div class="gear"><b>D</b>rijden</div></div>
+  </section>
+
+  <!-- Navigatie -->
+  <section id="nav" class="glass tap" role="button" tabindex="0" aria-label="Navigatie, tik voor volgende stap">
+   <div class="turn"><svg width="42" height="42" viewBox="0 0 42 42" aria-hidden="true"><path d="M14 38 V18 a6 6 0 0 1 6-6 h10" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M26 5 l8 7 -8 7" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+   <div><h2 id="navH">2,4 km</h2><p id="navP">Afrit 14, richting Zwijnaarde</p></div>
+  </section>
+  <section id="eta" class="glass tap" role="button" tabindex="0" aria-label="Aankomst, tik om te wisselen"><b id="etaB">14:32</b><p id="etaP">Gent, 18 min</p></section>
+
+  <!-- Media -->
+  <section id="media" class="glass" aria-label="Media">
+   <div class="cover"></div>
+   <div><h3 id="mTitle">Noorderlicht</h3><p id="mSub">Avondradio, 101,4 FM</p><div class="bar"><i id="mBar"></i></div></div>
+   <div class="ctrl">
+    <button id="playBtn" aria-label="Pauze"><svg width="26" height="26" viewBox="0 0 26 26"><rect x="5" y="3" width="5" height="20" rx="2" fill="#1C2328"/><rect x="16" y="3" width="5" height="20" rx="2" fill="#1C2328"/></svg></button>
+    <button id="nextBtn" aria-label="Volgende"><svg width="26" height="26" viewBox="0 0 26 26"><path d="M4 4 L16 13 L4 22Z" fill="#1C2328"/><rect x="18" y="4" width="4" height="18" rx="2" fill="#1C2328"/></svg></button>
+   </div>
+  </section>
+  <section id="battery" class="glass tap" role="button" tabindex="0" aria-label="Batterij, tik om te wisselen"><b id="batB">68 %</b><p id="batP">Bereik 287 km</p><div class="cell"><i></i></div></section>
+
+  <!-- Klimaat -->
+  <section id="climate" class="glass" aria-label="Klimaat">
+   <div class="temp" data-t="21"><button class="tbtn" data-d="-0.5" aria-label="Bestuurder kouder"><svg viewBox="0 0 24 24"><path d="M5 12h14" stroke="#1C2328" stroke-width="2.6" stroke-linecap="round"/></svg></button><div class="tval"><b id="tDrv">21,0°</b><span>Bestuurder</span></div><button class="tbtn" data-d="0.5" aria-label="Bestuurder warmer"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14" stroke="#1C2328" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
+   <div class="quick">
+    <button class="qb on" data-name="Ventilator" data-levels="3" data-level="2" aria-label="Ventilator"><svg viewBox="0 0 38 38" fill="none" stroke="#1C2328" stroke-width="2.6" stroke-linecap="round"><circle cx="19" cy="19" r="3"/><path d="M19 16 C14 6 26 4 24 12 M22 19 C32 14 34 26 26 24 M19 22 C24 32 12 34 14 26 M16 19 C6 24 4 12 12 14"/></svg></button>
+    <button class="qb on" data-name="Stoelverwarming" data-levels="3" data-level="1" aria-label="Stoelverwarming"><svg viewBox="0 0 38 38" fill="none" stroke="#1C2328" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6 v14 a3 3 0 0 0 3 3 h12 l3 9"/><path d="M10 32 h20"/><path d="M20 4 c-2 3 2 5 0 8 M26 4 c-2 3 2 5 0 8"/></svg></button>
+    <button class="qb" data-name="Ontwasemen voorruit" aria-label="Ontwasemen voorruit"><svg viewBox="0 0 38 38" fill="none" stroke="#1C2328" stroke-width="2.6" stroke-linecap="round"><path d="M5 26 C10 10 28 10 33 26 Z"/><path d="M14 16 c-2 3 2 5 0 8 M19 14 c-2 3 2 5 0 8 M24 16 c-2 3 2 5 0 8"/></svg></button>
+    <button class="qb" data-name="Achterruitverwarming" aria-label="Achterruitverwarming"><svg viewBox="0 0 38 38" fill="none" stroke="#1C2328" stroke-width="2.6" stroke-linecap="round"><rect x="6" y="9" width="26" height="18" rx="4"/><path d="M13 14 c-2 3 2 5 0 8 M19 14 c-2 3 2 5 0 8 M25 14 c-2 3 2 5 0 8"/></svg></button>
+   </div>
+   <div class="temp" data-t="21"><button class="tbtn" data-d="-0.5" aria-label="Passagier kouder"><svg viewBox="0 0 24 24"><path d="M5 12h14" stroke="#1C2328" stroke-width="2.6" stroke-linecap="round"/></svg></button><div class="tval"><b id="tPas">21,0°</b><span>Passagier</span></div><button class="tbtn" data-d="0.5" aria-label="Passagier warmer"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14" stroke="#1C2328" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
+  </section>
+
+  <!-- Overnameverzoek (onafhankelijke variabele: presentatie A vs B) -->
+  <div id="edge"></div>
+  <section id="takeover" class="glass" role="alertdialog" aria-labelledby="toTitle" aria-describedby="toText">
+   <div class="to-head">
+    <svg class="to-icon" viewBox="0 0 96 96" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" aria-hidden="true">
+     <circle cx="48" cy="48" r="38"/><circle cx="48" cy="48" r="9"/><path d="M12 42 C30 38 66 38 84 42 M48 57 V86"/>
+    </svg>
+    <div>
+     <h2 id="toTitle">Pilot Assist wordt uitgeschakeld. Neem het stuur over.</h2>
+     <p id="toText">Wegenwerken verderop. Rijstrookbegeleiding stopt.</p>
+    </div>
+   </div>
+   <div class="to-row"><span></span><button id="takeBtn">Neem over</button></div>
+  </section>
+  <div id="chip" class="glass" role="status" aria-live="polite"></div>
+  <div id="toast" class="glass" role="status">Je rijdt nu zelf</div>
+
+  <!-- Start -->
+  <div id="overlay">
+   <div class="glass">
+    <h2>Je rijdt op de E17 richting Gent</h2>
+    <p>Pilot Assist stuurt de auto. Als de auto vraagt om het stuur over te nemen, tik je zo snel mogelijk op de juiste knop.</p>
+    <button id="startBtn">Start de rit</button>
+   </div>
+  </div>
+ </div>
+</div>
+
+<script>
+(function(){
+  var VARIANT = "A";          // "A" = enkel tekst, "B" = icoon + kleur + puls
+  var DELAY_MIN = 4000, DELAY_MAX = 8000; // willekeurige wachttijd voor het verzoek (ms)
+  var TIMEOUT = 10000;                    // na 10 s zonder reactie: mislukt
+
+  var fit = document.getElementById('fit'), screen = document.getElementById('screen');
+  function scale(){ screen.style.transform = 'scale(' + (fit.clientWidth/900) + ')'; }
+  window.addEventListener('resize', scale); scale();
+
+  var $ = function(id){return document.getElementById(id);};
+  var t0 = null, misclicks = 0, done = false, timer, timeoutT, spdT;
+  var result = {variant:VARIANT, success:false, reactionTime_ms:null, misclicks:0, delay_ms:null, timedOut:false};
+
+  function report(){
+    result.misclicks = misclicks;
+    window.cockpitResult = result;
+    // 1) HTML rechtstreeks in een Qualtrics-vraag
+    try{ if(window.Qualtrics && Qualtrics.SurveyEngine){
+      Qualtrics.SurveyEngine.setEmbeddedData('variant', result.variant);
+      Qualtrics.SurveyEngine.setEmbeddedData('takeover_success', result.success ? 1 : 0);
+      Qualtrics.SurveyEngine.setEmbeddedData('takeover_rt_ms', result.reactionTime_ms === null ? '' : Math.round(result.reactionTime_ms));
+      Qualtrics.SurveyEngine.setEmbeddedData('takeover_misclicks', result.misclicks);
+    }}catch(e){}
+    // 2) Ingebed als iframe: stuur naar de Qualtrics-pagina
+    try{ window.parent.postMessage({type:'cockpitResult', data:result}, '*'); }catch(e){}
+    document.dispatchEvent(new CustomEvent('cockpitResult', {detail:result}));
+  }
+
+  $('startBtn').addEventListener('click', function(){
+    $('overlay').classList.add('hide');
+    screen.classList.add('drive');
+    spdT = setInterval(function(){ $('spd').textContent = 97 + Math.round(Math.random()*3); }, 1600);
+    result.delay_ms = Math.round(DELAY_MIN + Math.random()*(DELAY_MAX-DELAY_MIN));
+    timer = setTimeout(showTakeover, result.delay_ms);
+  });
+
+  function showTakeover(){
+    $('takeover').classList.add('show'); $('edge').classList.add('show'); screen.classList.add('alerting');
+    t0 = performance.now();
+    setTimeout(function(){ $('takeBtn').focus({preventScroll:true}); }, 0);
+    timeoutT = setTimeout(function(){
+      if(done) return; done = true; result.timedOut = true; finish(false);
+    }, TIMEOUT);
+  }
+
+  $('takeBtn').addEventListener('click', function(ev){
+    ev.stopPropagation();
+    if(done || t0 === null) return;
+    done = true; clearTimeout(timeoutT);
+    result.reactionTime_ms = performance.now() - t0;
+    finish(true);
+  });
+
+  // elke andere tik nadat het verzoek verscheen, telt als misklik
+  screen.addEventListener('click', function(ev){
+    if(t0 !== null && !done && !ev.target.closest('#takeBtn')) misclicks++;
+  });
+
+
+  /* ===== Interactieve bediening (sfeer; telt niet mee in de meting behalve als misklik tijdens het verzoek) ===== */
+  var chipT;
+  function chip(txt){ var c=$('chip'); c.textContent=txt; c.classList.add('show'); clearTimeout(chipT); chipT=setTimeout(function(){c.classList.remove('show');},1400); }
+  function fmt(t){ return t.toFixed(1).replace('.',',') + '°'; }
+
+  // temperatuur
+  Array.prototype.forEach.call(document.querySelectorAll('.temp'), function(box){
+    var val = box.querySelector('b'), who = box.querySelector('span').textContent;
+    Array.prototype.forEach.call(box.querySelectorAll('.tbtn'), function(b){
+      b.addEventListener('click', function(){
+        var t = Math.min(28, Math.max(16, parseFloat(box.dataset.t) + parseFloat(b.dataset.d)));
+        box.dataset.t = t; val.textContent = fmt(t); chip(who + ' ' + fmt(t));
+      });
+    });
+  });
+
+  // snelknoppen met niveaus (ventilator, stoelverwarming) of aan/uit
+  Array.prototype.forEach.call(document.querySelectorAll('.qb'), function(b){
+    var levels = parseInt(b.dataset.levels || 0, 10);
+    if(levels){ var lv=document.createElement('span'); lv.className='lv'; for(var i=0;i<levels;i++){lv.appendChild(document.createElement('i'));} b.appendChild(lv); }
+    function paint(){
+      if(levels){ var n=parseInt(b.dataset.level,10); b.classList.toggle('on', n>0);
+        Array.prototype.forEach.call(b.querySelectorAll('.lv i'), function(d,i){ d.classList.toggle('f', i<n); }); }
+      b.setAttribute('aria-pressed', b.classList.contains('on'));
+    }
+    paint();
+    b.addEventListener('click', function(){
+      if(levels){ var n=(parseInt(b.dataset.level,10)+1)%(levels+1); b.dataset.level=n; paint();
+        chip(b.dataset.name + (n ? ' niveau ' + n : ' uit'));
+      } else { b.classList.toggle('on'); paint(); chip(b.dataset.name + (b.classList.contains('on') ? ' aan' : ' uit')); }
+    });
+  });
+
+  // media
+  var stations=[['Noorderlicht','Avondradio, 101,4 FM'],['Kustlijn','Zeeland FM, 96,8'],['Stille uren','Podcast, aflevering 12'],['Ochtendploeg','Stadsradio, 104,1 FM']];
+  var st=0, playing=true, prog=38;
+  var PAUSE='<svg width="26" height="26" viewBox="0 0 26 26"><rect x="5" y="3" width="5" height="20" rx="2" fill="#1C2328"/><rect x="16" y="3" width="5" height="20" rx="2" fill="#1C2328"/></svg>';
+  var PLAY='<svg width="26" height="26" viewBox="0 0 26 26"><path d="M6 3 L22 13 L6 23Z" fill="#1C2328"/></svg>';
+  setInterval(function(){ if(playing){ prog=(prog+0.6)%100; $('mBar').style.width=prog+'%'; } },1000);
+  $('playBtn').addEventListener('click', function(){
+    playing=!playing; this.innerHTML = playing ? PAUSE : PLAY; this.setAttribute('aria-label', playing?'Pauze':'Afspelen');
+    chip(playing ? 'Afspelen' : 'Gepauzeerd');
+  });
+  $('nextBtn').addEventListener('click', function(){
+    st=(st+1)%stations.length; $('mTitle').textContent=stations[st][0]; $('mSub').textContent=stations[st][1];
+    prog=0; $('mBar').style.width='0%';
+    var c=document.querySelector('.cover'); c.style.filter='hue-rotate('+(st*55)+'deg)';
+  });
+
+  // navigatie: volgende stap
+  var steps=[['2,4 km','Afrit 14, richting Zwijnaarde'],['5,1 km','Rechts aanhouden, R4 Gent'],['9,8 km','Bestemming rechts, Kortrijksesteenweg']];
+  var sIdx=0;
+  function nextStep(){ sIdx=(sIdx+1)%steps.length; $('navH').textContent=steps[sIdx][0]; $('navP').textContent=steps[sIdx][1]; }
+  // ETA en batterij: weergave wisselen
+  var etaAlt=false, batAlt=false;
+  function toggleEta(){ etaAlt=!etaAlt; $('etaB').textContent=etaAlt?'21 km':'14:32'; $('etaP').textContent=etaAlt?'Resterend tot Gent':'Gent, 18 min'; }
+  function toggleBat(){ batAlt=!batAlt; $('batB').textContent=batAlt?'287 km':'68 %'; $('batP').textContent=batAlt?'Genoeg tot Gent en terug':'Bereik 287 km'; }
+  [['nav',nextStep],['eta',toggleEta],['battery',toggleBat]].forEach(function(x){
+    var el=$(x[0]); el.addEventListener('click', x[1]);
+    el.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); x[1](); } });
+  });
+
+  function finish(ok){
+    result.success = ok;
+    $('takeover').classList.remove('show'); $('edge').classList.remove('show'); screen.classList.remove('alerting');
+    screen.classList.remove('drive'); screen.classList.add('off');
+    clearInterval(spdT);
+    $('paLabel').textContent = 'Pilot Assist uit';
+    $('toast').textContent = ok ? 'Je rijdt nu zelf' : 'Geen reactie binnen 10 seconden';
+    $('toast').classList.add('show');
+    report();
+  }
+})();
+</script>
+</body>
+</html>
